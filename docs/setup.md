@@ -4,12 +4,16 @@
 
 ## 1. Install the components
 
-Install:
+Download from the official project pages:
 
-- Sunshine
-- Moonlight
-- Virtual Display Driver (VDD by MTT)
-- NirSoft MultiMonitorTool
+- Sunshine: https://github.com/LizardByte/Sunshine/releases
+- Moonlight: https://moonlight-stream.org/
+- Virtual Display Driver (VDD by MTT): https://github.com/VirtualDrivers/Virtual-Display-Driver/releases
+- NirSoft MultiMonitorTool: https://www.nirsoft.net/utils/multi_monitor_tool.html
+
+Prefer official project pages rather than third-party mirrors.
+
+Install or extract the components as appropriate.
 
 Recommended paths:
 
