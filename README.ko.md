@@ -16,6 +16,15 @@
 - NirSoft MultiMonitorTool
 - PowerShell 시작/종료 스크립트
 
+## 공식 다운로드
+
+- Sunshine: https://github.com/LizardByte/Sunshine/releases
+- Moonlight: https://moonlight-stream.org/
+- Virtual Display Driver (VDD by MTT): https://github.com/VirtualDrivers/Virtual-Display-Driver/releases
+- NirSoft MultiMonitorTool: https://www.nirsoft.net/utils/multi_monitor_tool.html
+
+가능하면 위 공식 페이지에서 내려받고, 서드파티 미러는 피하는 것을 권장합니다.
+
 최종 구조는 다음과 같습니다.
 
 ```text
@@ -69,7 +78,7 @@ C:\SunshineTools\multimonitortool\MultiMonitorTool.exe
 
 ## 빠른 설정
 
-1. VDD와 MultiMonitorTool을 설치합니다.
+1. 위 공식 링크에서 필요한 프로그램을 내려받아 설치합니다.
 2. PowerShell 스크립트를 `C:\SunshineScripts\`에 둡니다.
 3. VDD를 끄고 물리 모니터만 평소 배치로 정확히 맞춘 뒤 다음 명령으로 `local.cfg`를 저장합니다.
 
