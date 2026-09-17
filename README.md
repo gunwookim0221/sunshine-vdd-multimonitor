@@ -16,6 +16,15 @@ This repository documents a working setup built around:
 - NirSoft MultiMonitorTool
 - PowerShell prep/undo scripts
 
+## Official downloads
+
+- Sunshine: https://github.com/LizardByte/Sunshine/releases
+- Moonlight: https://moonlight-stream.org/
+- Virtual Display Driver (VDD by MTT): https://github.com/VirtualDrivers/Virtual-Display-Driver/releases
+- NirSoft MultiMonitorTool: https://www.nirsoft.net/utils/multi_monitor_tool.html
+
+Prefer the official project pages above rather than third-party mirrors.
+
 The final design keeps the responsibilities separated:
 
 ```text
@@ -69,7 +78,7 @@ C:\SunshineTools\multimonitortool\MultiMonitorTool.exe
 
 ## Quick setup
 
-1. Install VDD and MultiMonitorTool.
+1. Download and install the components from the official links above.
 2. Put the PowerShell scripts in `C:\SunshineScripts\`.
 3. With only the physical monitors in the exact normal arrangement, save:
 
