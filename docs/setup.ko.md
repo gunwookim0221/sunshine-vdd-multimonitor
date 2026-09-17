@@ -4,12 +4,16 @@
 
 ## 1. 구성 요소 설치
 
-다음을 설치합니다.
+아래 공식 프로젝트 페이지에서 내려받습니다.
 
-- Sunshine
-- Moonlight
-- Virtual Display Driver (VDD by MTT)
-- NirSoft MultiMonitorTool
+- Sunshine: https://github.com/LizardByte/Sunshine/releases
+- Moonlight: https://moonlight-stream.org/
+- Virtual Display Driver (VDD by MTT): https://github.com/VirtualDrivers/Virtual-Display-Driver/releases
+- NirSoft MultiMonitorTool: https://www.nirsoft.net/utils/multi_monitor_tool.html
+
+가능하면 서드파티 미러가 아니라 위 공식 페이지를 사용하세요.
+
+프로그램 성격에 따라 설치하거나 압축을 풉니다.
 
 권장 경로:
 
