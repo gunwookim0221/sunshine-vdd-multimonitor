@@ -1,0 +1,11 @@
+# Machine-specific monitor topology snapshots
+*.cfg
+
+# Temporary exports / logs
+*.csv
+*.log
+
+# PowerShell/editor artifacts
+*.tmp
+.vscode/
+.idea/
