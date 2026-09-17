@@ -59,8 +59,8 @@ function Find-VddDisplayName {
         }
 
         foreach ($v in $values) {
-            if ($v -match '\\\\.\\DISPLAY\d+') {
-                return $Matches[0]
+            if ($v -like '\\.\DISPLAY*') {
+                return $v
             }
         }
     }
@@ -76,10 +76,9 @@ function Get-AllDisplayNames {
     foreach ($row in $Rows) {
         foreach ($prop in $row.PSObject.Properties) {
             $v = [string]$prop.Value
-            if ($v -match '\\\\.\\DISPLAY\d+') {
-                $name = $Matches[0]
-                if (-not $names.Contains($name)) {
-                    $names.Add($name)
+            if ($v -like '\\.\DISPLAY*') {
+                if (-not $names.Contains($v)) {
+                    $names.Add($v)
                 }
             }
         }
