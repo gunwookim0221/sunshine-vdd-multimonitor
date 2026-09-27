@@ -27,6 +27,9 @@ C:\SunshineTools\multimonitortool\MultiMonitorTool.exe
 ```text
 C:\SunshineScripts\sunshine-remote-on.ps1
 C:\SunshineScripts\sunshine-remote-off.ps1
+C:\SunshineScripts\sunshine-boot-recovery.ps1
+C:\SunshineScripts\register-boot-recovery.ps1
+C:\SunshineScripts\collect-display-diagnostics.ps1
 ```
 
 ## 2. 평소 물리 모니터 상태 저장
@@ -120,3 +123,21 @@ Moonlight 종료
 - VDD는 `DISPLAY5`, `DISPLAY7`, `DISPLAY8`처럼 번호가 바뀔 수 있으므로 번호를 고정하지 않습니다.
 - 실제 검증 환경은 물리 모니터 2대 + 필요할 때만 켜는 VDD 1대였습니다.
 - 시작 스크립트는 VDD를 제외한 나머지 모니터를 모두 끕니다. 다른 토폴로지에서는 반드시 수동 테스트 후 사용하세요.
+
+## 6. 로그인 자동 복구 안전장치
+
+비정상 종료나 강제 재부팅으로 Sunshine Undo가 실행되지 않아도, 사용자 로그인 시 정상 물리 모니터 구성을 다시 적용하도록 예약 작업을 등록할 수 있습니다.
+
+관리자 PowerShell:
+
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\register-boot-recovery.ps1"
+
+복구 스크립트는 로그인 후 10초 기다린 뒤 `local.cfg`를 로드하고, Windows에서 활성 화면 2개 이상을 확인한 경우에만 VDD를 끕니다.
+
+세션 시작/종료/부팅 복구 로그는 `C:\SunshineLogs\`에 저장됩니다.
+
+문제 발생 즉시 수동 진단 수집:
+
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\collect-display-diagnostics.ps1"
+
+자세한 내용은 [안전장치 및 진단 로그](safety-and-diagnostics.ko.md)를 참고하세요.
