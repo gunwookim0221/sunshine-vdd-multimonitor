@@ -27,6 +27,9 @@ Copy the repository scripts to:
 ```text
 C:\SunshineScripts\sunshine-remote-on.ps1
 C:\SunshineScripts\sunshine-remote-off.ps1
+C:\SunshineScripts\sunshine-boot-recovery.ps1
+C:\SunshineScripts\register-boot-recovery.ps1
+C:\SunshineScripts\collect-display-diagnostics.ps1
 ```
 
 ## 2. Create the local monitor baseline
@@ -120,3 +123,21 @@ Moonlight disconnects
 - The VDD may appear as `DISPLAY5`, `DISPLAY7`, `DISPLAY8`, etc. The script intentionally does not assume a fixed number.
 - The setup was developed for a host with two physical monitors plus one temporary VDD. The start script disables every display other than the detected VDD.
 - If your topology is materially different, test manually before enabling Prep Commands.
+
+## 6. Logon recovery safety net
+
+Register a scheduled task so the normal physical-monitor layout is restored at user logon even if Sunshine Undo was missed because of a crash or forced reboot.
+
+From elevated PowerShell:
+
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\register-boot-recovery.ps1"
+
+The recovery script waits 10 seconds after logon, loads `local.cfg`, verifies at least two active Windows screens, and only then disables VDD.
+
+Session-start, session-end, and recovery logs are stored under `C:\SunshineLogs\`.
+
+To capture diagnostics during a failure:
+
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\collect-display-diagnostics.ps1"
+
+See [Safety Net and Diagnostics](safety-and-diagnostics.md) for details.
