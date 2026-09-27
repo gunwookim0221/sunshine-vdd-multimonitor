@@ -16,7 +16,8 @@ if ($Remove) {
 if (-not (Test-Path $ScriptPath)) { throw "Recovery script not found: $ScriptPath" }
 
 $userId = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File \"$ScriptPath\""
+$arguments = '-NoProfile -ExecutionPolicy Bypass -File "{0}"' -f $ScriptPath
+$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $arguments
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $userId
 $principal = New-ScheduledTaskPrincipal -UserId $userId -LogonType Interactive -RunLevel Highest
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
