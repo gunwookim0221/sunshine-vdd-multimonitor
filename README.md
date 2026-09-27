@@ -56,6 +56,10 @@ Moonlight session end
 
 - `scripts/sunshine-remote-on.ps1` — session start
 - `scripts/sunshine-remote-off.ps1` — session end / restore
+- `scripts/sunshine-boot-recovery.ps1` — logon-time physical-monitor recovery safety net
+- `scripts/register-boot-recovery.ps1` — register/remove the recovery scheduled task
+- `scripts/collect-display-diagnostics.ps1` — capture state during a failure
+- `docs/safety-and-diagnostics.md` — recovery and diagnostic logging
 - `docs/setup.md` — full setup guide
 - `docs/troubleshooting.md` — failure modes and fixes
 - `docs/recovery.md` — black-screen recovery procedure
@@ -100,6 +104,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\suns
 ```
 
 5. Test the scripts manually before connecting them to Sunshine.
+6. For crash/forced-reboot protection, register the logon recovery task described in [Safety Net and Diagnostics](docs/safety-and-diagnostics.md).
+
+The v4 scripts automatically write transition logs under `C:\SunshineLogs\`.
 
 See [docs/setup.md](docs/setup.md) for the full procedure.
 
