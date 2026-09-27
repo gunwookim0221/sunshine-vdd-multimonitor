@@ -56,6 +56,10 @@ Moonlight 종료
 
 - `scripts/sunshine-remote-on.ps1` — 원격 세션 시작
 - `scripts/sunshine-remote-off.ps1` — 원격 세션 종료/복구
+- `scripts/sunshine-boot-recovery.ps1` — 로그인 시 물리 모니터 자동 복구 안전장치
+- `scripts/register-boot-recovery.ps1` — 복구 작업 스케줄러 등록/제거
+- `scripts/collect-display-diagnostics.ps1` — 문제 발생 시 즉시 상태 수집
+- `docs/safety-and-diagnostics.ko.md` — 자동 복구와 원인 추적 로그
 - `docs/setup.ko.md` — 전체 설치 및 설정
 - `docs/troubleshooting.ko.md` — 문제 해결
 - `docs/recovery.ko.md` — 블랙스크린 복구
@@ -100,6 +104,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\suns
 ```
 
 5. Sunshine에 연결하기 전에 두 스크립트를 수동으로 왕복 테스트합니다.
+6. 비정상 종료/강제 재부팅 대비를 위해 [안전장치 및 진단 로그](docs/safety-and-diagnostics.ko.md)의 로그인 자동 복구 작업도 등록하는 것을 권장합니다.
+
+v4 스크립트는 모든 전환 로그를 `C:\SunshineLogs\`에 자동 저장합니다.
 
 자세한 절차는 [docs/setup.ko.md](docs/setup.ko.md)를 참고하세요.
 
