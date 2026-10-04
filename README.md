@@ -25,7 +25,7 @@ This repository documents a working setup built around:
 
 Prefer the official project pages above rather than third-party mirrors.
 
-The final design keeps the responsibilities separated:
+The final design is:
 
 ```text
 Normal local use
@@ -34,9 +34,11 @@ Normal local use
 
 Moonlight session start
   Enable VDD
-  Detect the VDD display dynamically
-  Enable it and make it primary
-  Disable the physical displays
+  Discover VDD dynamically
+  Enable/make primary using a stable monitor identifier
+  Resolve physical-monitor identifiers before changing topology
+  Disable all physical monitors in one call
+  Verify VDD is the only active display and is Primary
 
 Moonlight session end
   Restore the saved physical-monitor layout from local.cfg
@@ -46,7 +48,10 @@ Moonlight session end
 
 ## Important design choices
 
-- Do not hard-code `DISPLAY5`, `DISPLAY7`, etc. Windows may renumber the VDD after reconnects or reboots.
+- Do not hard-code `DISPLAY5`, `DISPLAY7`, etc. Windows can renumber DISPLAY names during topology changes, not only across reboots.
+- v4.1 chooses a stable command target in this order: Serial Number -> full Monitor ID -> Short Monitor ID.
+- Resolve all physical-monitor identifiers before changing topology, then disable them in **one MultiMonitorTool `/disable` invocation**.
+- Verify the post-condition: exactly one active display, the VDD, and it is Primary. If verification fails, attempt `local.cfg` rollback immediately.
 - Leave Sunshine `output_name` / Display Device ID blank so Sunshine captures the current primary display.
 - Set Sunshine Display Device Configuration to disabled. The PowerShell scripts own the monitor topology.
 - Do not rely on Sunshine `ensure_only_display` for this workflow.
@@ -54,7 +59,7 @@ Moonlight session end
 
 ## Files
 
-- `scripts/sunshine-remote-on.ps1` — session start
+- `scripts/sunshine-remote-on.ps1` — session start (v4.1)
 - `scripts/sunshine-remote-off.ps1` — session end / restore
 - `scripts/sunshine-boot-recovery.ps1` — logon-time physical-monitor recovery safety net
 - `scripts/register-boot-recovery.ps1` — register/remove the recovery scheduled task
@@ -64,6 +69,7 @@ Moonlight session end
 - `docs/troubleshooting.md` — failure modes and fixes
 - `docs/recovery.md` — black-screen recovery procedure
 - `docs/lessons-learned.md` — what failed and why
+- `docs/rca-2026-10-04-display-renumbering.md` — real incident RCA
 
 ## Requirements
 
@@ -106,7 +112,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\suns
 5. Test the scripts manually before connecting them to Sunshine.
 6. For crash/forced-reboot protection, register the logon recovery task described in [Safety Net and Diagnostics](docs/safety-and-diagnostics.md).
 
-The v4 scripts automatically write transition logs under `C:\SunshineLogs\`.
+The v4.1 scripts automatically write transition logs under `C:\SunshineLogs\`.
 
 See [docs/setup.md](docs/setup.md) for the full procedure.
 
