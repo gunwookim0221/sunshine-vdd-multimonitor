@@ -2,6 +2,22 @@
 
 [한국어](troubleshooting.ko.md)
 
+## A physical monitor remains active or the phone looks like it has multiple screens
+
+This was reproduced with pre-v4.1 logic. Disabling monitors sequentially by names such as `\\.\DISPLAY1` and `\\.\DISPLAY2` is unsafe because Windows can renumber display names immediately after the first topology change. The second command may then target a different monitor than originally intended.
+
+v4.1 fixes this by:
+
+- using Serial Number / full Monitor ID / Short Monitor ID instead of DISPLAY numbering
+- resolving all physical-monitor identifiers before changing topology
+- disabling all physical monitors in one `/disable` invocation
+- verifying that exactly one `Active=Yes` display remains, and that it is the VDD
+- attempting `local.cfg` rollback if verification fails
+
+Copy the latest `scripts/sunshine-remote-on.ps1` to `C:\SunshineScripts\sunshine-remote-on.ps1`.
+
+Incident analysis: [2026-10-04 RCA](rca-2026-10-04-display-renumbering.md)
+
 ## Moonlight connects but all monitors remain active
 
 Do not rely on Sunshine `ensure_only_display` for this workflow. The start script should make the VDD primary and disable all other displays itself.
@@ -14,7 +30,7 @@ If Sunshine has a fixed Display Device ID / `output_name`, clear it. VDD recreat
 
 ## VDD appears as DISPLAY5, then DISPLAY7 or DISPLAY8
 
-This is expected. Do not hard-code the display number. The start script discovers the VDD through MultiMonitorTool output.
+This is expected. Do not hard-code the display number. The v4.1 start script discovers the VDD and then uses a stable monitor identifier for topology-changing commands.
 
 ## Apps keep opening on the invisible virtual monitor during normal PC use
 
@@ -44,6 +60,16 @@ Get-PnpDevice -ErrorAction SilentlyContinue |
 ```
 
 If `local.cfg` restores the wrong primary monitor or wrong geometry, recreate it while VDD is disabled and the physical monitors are arranged exactly as desired.
+
+## Capture diagnostics before rebooting or recovering
+
+If possible, run this before rebooting or restoring the layout:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\collect-display-diagnostics.ps1"
+```
+
+The bundle is saved under `C:\SunshineLogs\<timestamp>-diagnostics\` and includes current topology, PnP state, and recent Display/Kernel-PnP/NVIDIA/Kernel-Power events.
 
 ## `Get-PnpDevice -HardwareID` fails
 
