@@ -82,7 +82,7 @@ The start sequence is:
 7. Re-read the topology and verify exactly one `Active=Yes` display remains, and it is the VDD and Primary.
 8. If verification fails, immediately attempt `local.cfg` rollback.
 
-MultiMonitorTool supports Monitor ID, Short Monitor ID, and monitor serial number as command-line monitor identifiers. citeturn569586search0turn569586search2
+MultiMonitorTool supports Monitor ID, Short Monitor ID, and monitor serial number as command-line monitor identifiers. See the official MultiMonitorTool documentation: https://www.nirsoft.net/utils/multi_monitor_tool.html
 
 ## 5. Test manually before enabling automation
 
