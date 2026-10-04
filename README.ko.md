@@ -34,9 +34,11 @@
 
 Moonlight 접속 시작
   VDD ON
-  VDD 모니터를 동적으로 탐색
-  VDD 활성화 + 주 모니터 지정
-  물리 모니터 비활성화
+  VDD 동적 탐색
+  안정 식별자로 VDD 활성화 + Primary
+  물리 모니터 식별자를 미리 수집
+  물리 모니터들을 한 번에 Disable
+  VDD 1개만 Active인지 검증
 
 Moonlight 종료
   local.cfg로 물리 모니터 배치 복원
@@ -46,15 +48,18 @@ Moonlight 종료
 
 ## 핵심 설계 원칙
 
-- `DISPLAY5`, `DISPLAY7`, `DISPLAY8` 같은 번호를 하드코딩하지 않습니다. VDD를 껐다 켜면 번호가 바뀔 수 있습니다.
+- `DISPLAY5`, `DISPLAY7`, `DISPLAY8` 같은 번호를 하드코딩하지 않습니다. Windows가 토폴로지를 바꾸는 중에도 DISPLAY 번호가 재배정될 수 있습니다.
+- v4.1 시작 스크립트는 Serial Number → full Monitor ID → Short Monitor ID 순으로 안정 식별자를 선택합니다.
+- 복수 물리 모니터는 토폴로지 변경 전에 식별자를 모두 수집한 뒤 **한 번의 MultiMonitorTool `/disable` 호출**로 처리합니다.
+- 전환 후 `Active=Yes`가 정확히 VDD 1개뿐이고 Primary인지 검증하며, 실패 시 `local.cfg` rollback을 시도합니다.
 - Sunshine의 `output_name` / 디스플레이 장치 ID는 **빈칸**으로 둡니다. 현재 주 모니터를 자동 캡처하게 합니다.
 - Sunshine의 디스플레이 장치 구성은 **사용 안 함**으로 둡니다. 모니터 토폴로지는 PowerShell 스크립트가 전담합니다.
 - 이 구성에서는 Sunshine의 `ensure_only_display`에 의존하지 않습니다.
-- 종료 시 반드시 **`local.cfg 복원 → 물리 모니터 복귀 확인 → VDD OFF`** 순서를 지킵니다. 순서를 거꾸로 하면 화면이 하나도 안 보이는 상태가 될 수 있습니다.
+- 종료 시 반드시 **`local.cfg 복원 → 물리 모니터 복귀 확인 → VDD OFF`** 순서를 지킵니다.
 
 ## 파일 구성
 
-- `scripts/sunshine-remote-on.ps1` — 원격 세션 시작
+- `scripts/sunshine-remote-on.ps1` — 원격 세션 시작 (v4.1)
 - `scripts/sunshine-remote-off.ps1` — 원격 세션 종료/복구
 - `scripts/sunshine-boot-recovery.ps1` — 로그인 시 물리 모니터 자동 복구 안전장치
 - `scripts/register-boot-recovery.ps1` — 복구 작업 스케줄러 등록/제거
@@ -64,6 +69,7 @@ Moonlight 종료
 - `docs/troubleshooting.ko.md` — 문제 해결
 - `docs/recovery.ko.md` — 블랙스크린 복구
 - `docs/lessons-learned.ko.md` — 시행착오와 원인
+- `docs/rca-2026-10-04-display-renumbering.ko.md` — 실제 장애 RCA
 
 ## 요구 사항
 
@@ -106,7 +112,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\suns
 5. Sunshine에 연결하기 전에 두 스크립트를 수동으로 왕복 테스트합니다.
 6. 비정상 종료/강제 재부팅 대비를 위해 [안전장치 및 진단 로그](docs/safety-and-diagnostics.ko.md)의 로그인 자동 복구 작업도 등록하는 것을 권장합니다.
 
-v4 스크립트는 모든 전환 로그를 `C:\SunshineLogs\`에 자동 저장합니다.
+v4.1 스크립트는 모든 전환 로그를 `C:\SunshineLogs\`에 자동 저장합니다.
 
 자세한 절차는 [docs/setup.ko.md](docs/setup.ko.md)를 참고하세요.
 
