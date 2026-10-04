@@ -62,3 +62,19 @@ MultiMonitorTool
 ```
 
 Keeping those responsibilities separate reduced timing conflicts and made recovery predictable.
+
+## 9. Sequential `DISPLAYx` commands can retarget themselves after topology changes
+
+A real incident on 2026-10-04 showed the start script logging that both `DISPLAY1` and `DISPLAY2` were disabled, while the post-switch snapshot still had one physical monitor as `Active=Yes`.
+
+The v4 script disabled physical monitors one at a time by `\\.\DISPLAYx` name. After the first monitor is disabled, Windows may immediately renumber the display topology. The second `DISPLAYx` name can therefore refer to a different physical monitor than it did when the list was collected.
+
+v4.1 approach:
+
+- choose a stable identifier in this order: Serial Number -> full Monitor ID -> Short Monitor ID
+- resolve every physical-monitor identifier before changing topology
+- disable all physical monitors in one `/disable` invocation
+- verify the post-condition: exactly one active display, the VDD, and it is Primary
+- immediately attempt `local.cfg` rollback if verification fails
+
+See [2026-10-04 RCA](rca-2026-10-04-display-renumbering.md) for the incident details.
