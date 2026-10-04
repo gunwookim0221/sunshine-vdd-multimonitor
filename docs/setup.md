@@ -13,8 +13,6 @@ Download from the official project pages:
 
 Prefer official project pages rather than third-party mirrors.
 
-Install or extract the components as appropriate.
-
 Recommended paths:
 
 ```text
@@ -42,7 +40,7 @@ Before saving the baseline:
 4. Set the correct primary monitor.
 5. Verify resolution, orientation, scaling, and position.
 
-Then save the configuration:
+Then save:
 
 ```powershell
 & "C:\SunshineTools\multimonitortool\MultiMonitorTool.exe" /SaveConfig "C:\SunshineTools\multimonitortool\local.cfg"
@@ -57,8 +55,6 @@ In Sunshine Audio/Video settings:
 - Display Device ID / `output_name`: leave blank
 - Display Device Configuration: disabled
 
-Why: the start script makes the VDD the Windows primary display, so Sunshine can simply capture the active primary display. A fixed GUID is fragile because Windows can recreate/renumber the VDD.
-
 In Sunshine Prep Commands, add one elevated command pair:
 
 ```text
@@ -69,24 +65,46 @@ Undo:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\sunshine-remote-off.ps1"
 ```
 
-Enable the elevated/admin option for the command pair.
+Enable the elevated/admin option.
 
-## 4. Test manually before enabling automation
+## 4. How the v4.1 start script works
 
-Run the start script from an elevated PowerShell:
+v4.1 does not treat `\\.\DISPLAY1`-style names as persistent identities for topology-changing commands. Windows can renumber DISPLAY names immediately after the first monitor is disabled.
+
+The start sequence is:
+
+1. Enable the VDD PnP device.
+2. Find VDD from the MultiMonitorTool CSV.
+3. Choose command identifiers in this order: Serial Number -> full Monitor ID -> Short Monitor ID.
+4. Enable and make VDD Primary using the stable identifier.
+5. Resolve every active physical-monitor identifier before changing topology.
+6. Disable all physical monitors in **one MultiMonitorTool `/disable` invocation**.
+7. Re-read the topology and verify exactly one `Active=Yes` display remains, and it is the VDD and Primary.
+8. If verification fails, immediately attempt `local.cfg` rollback.
+
+MultiMonitorTool supports Monitor ID, Short Monitor ID, and monitor serial number as command-line monitor identifiers. citeturn569586search0turn569586search2
+
+## 5. Test manually before enabling automation
+
+Run from elevated PowerShell:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\sunshine-remote-on.ps1"
 ```
 
-Expected result:
+Expected log pattern:
 
-- VDD is enabled.
-- The VDD display is found dynamically.
-- The VDD becomes primary.
-- Physical displays are disabled.
+```text
+SESSION_START_V41
+VDD ... stableId=...
+Disabling physical displays in one call using stable identifiers: ...
+VERIFY activeCount=1 activeVddCount=1
+SESSION_START_SUCCESS
+```
 
-Then run the restore script:
+The actual topology should also show only the VDD active.
+
+Then run:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\sunshine-remote-off.ps1"
@@ -95,49 +113,65 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\suns
 Expected result:
 
 - `local.cfg` restores the physical monitor layout.
-- At least two displays are detected again.
-- VDD is disabled only after the physical monitors have returned.
+- At least two active physical displays are verified.
+- VDD is disabled only after that verification.
 
 Only after this round-trip succeeds should the scripts be connected to Sunshine Prep Commands.
 
-## 5. Final session flow
+## 6. Final session flow
 
 ```text
 Moonlight connects
-  -> Sunshine Do command
-  -> VDD enabled
-  -> VDD detected dynamically
-  -> VDD primary
-  -> physical monitors disabled
-  -> Sunshine captures the current primary display
+  -> VDD ON
+  -> choose stable VDD identifier
+  -> VDD Primary
+  -> resolve physical stable identifiers
+  -> disable physical monitors in one call
+  -> verify VDD is the only active display
+  -> Sunshine capture
 
 Moonlight disconnects
-  -> Sunshine Undo command
   -> local.cfg restored
   -> physical displays verified
   -> VDD disabled
 ```
 
-## Notes
-
-- The VDD may appear as `DISPLAY5`, `DISPLAY7`, `DISPLAY8`, etc. The script intentionally does not assume a fixed number.
-- The setup was developed for a host with two physical monitors plus one temporary VDD. The start script disables every display other than the detected VDD.
-- If your topology is materially different, test manually before enabling Prep Commands.
-
-## 6. Logon recovery safety net
+## 7. Logon recovery safety net
 
 Register a scheduled task so the normal physical-monitor layout is restored at user logon even if Sunshine Undo was missed because of a crash or forced reboot.
 
 From elevated PowerShell:
 
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\register-boot-recovery.ps1"
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\register-boot-recovery.ps1"
+```
+
+Verify:
+
+```powershell
+Get-ScheduledTask -TaskName "Sunshine VDD Boot Recovery"
+```
 
 The recovery script waits 10 seconds after logon, loads `local.cfg`, verifies at least two active Windows screens, and only then disables VDD.
 
+## 8. Logs and diagnostics
+
 Session-start, session-end, and recovery logs are stored under `C:\SunshineLogs\`.
 
-To capture diagnostics during a failure:
+If a failure occurs, preferably before reboot/recovery:
 
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\collect-display-diagnostics.ps1"
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\collect-display-diagnostics.ps1"
+```
 
-See [Safety Net and Diagnostics](safety-and-diagnostics.md) for details.
+See:
+
+- [Safety Net and Diagnostics](safety-and-diagnostics.md)
+- [2026-10-04 DISPLAY renumbering RCA](rca-2026-10-04-display-renumbering.md)
+
+## Notes
+
+- The tested topology is two physical monitors plus one temporary VDD.
+- `DISPLAY5`, `DISPLAY7`, `DISPLAY8`, etc. may legitimately change.
+- Stable identifiers and post-switch topology verification matter more than DISPLAY numbering.
+- If your topology is materially different, test manually before enabling Prep Commands.
