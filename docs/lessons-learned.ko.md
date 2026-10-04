@@ -62,3 +62,19 @@ MultiMonitorTool
 ```
 
 역할을 분리하니 타이밍 충돌이 줄고, 문제가 생겼을 때 복구 경로도 명확해졌습니다.
+
+## 9. `DISPLAYx`를 순차 명령의 식별자로 쓰면 중간에 대상이 바뀔 수 있음
+
+2026-10-04 실제 장애 로그에서 시작 스크립트는 `DISPLAY1`, `DISPLAY2`를 모두 비활성화했다고 기록했지만, 전환 후 스냅샷에는 물리 모니터 하나가 `Active=Yes`로 남았습니다.
+
+원인은 v4가 물리 모니터를 `\\.\DISPLAYx` 이름으로 한 대씩 순차 비활성화한 구조였습니다. 첫 번째 모니터가 꺼지는 순간 Windows가 DISPLAY 번호를 재배정하면, 두 번째 명령의 `DISPLAYx`가 처음 수집했을 때와 다른 실제 모니터를 가리킬 수 있습니다.
+
+v4.1 최종 방식:
+
+- Serial Number → full Monitor ID → Short Monitor ID 순으로 안정 식별자를 선택
+- 토폴로지 변경 전에 모든 물리 모니터 식별자를 먼저 수집
+- 복수 물리 모니터를 `/disable` 한 번의 호출로 처리
+- 처리 후 `Active=Yes`가 정확히 VDD 1개뿐이고 Primary인지 검증
+- 검증 실패 시 즉시 `local.cfg` rollback 시도
+
+자세한 장애 분석은 [2026-10-04 RCA](rca-2026-10-04-display-renumbering.ko.md)를 참고하세요.
