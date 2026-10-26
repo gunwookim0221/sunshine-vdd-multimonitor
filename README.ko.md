@@ -8,6 +8,8 @@
 
 듀얼/멀티 모니터 PC를 그대로 스트리밍하면 폰 화면이 너무 넓어지고, 앱이 보이지 않는 물리 모니터에서 열리거나, 가상 모니터를 잘못 끄는 순간 Windows 출력 화면이 0개가 되는 문제가 생길 수 있습니다.
 
+또한 PC는 켜져 있는데 Sunshine 서비스/프로세스가 비정상 상태가 되어 Moonlight에서 호스트가 회색/offline으로 보이는 경우를 대비해 별도의 Sunshine watchdog도 포함합니다.
+
 이 저장소는 다음 조합에서 실제로 동작한 절차를 정리합니다.
 
 - Sunshine
@@ -62,6 +64,7 @@ Sunshine 가용성 보호
 - 이 구성에서는 Sunshine의 `ensure_only_display`에 의존하지 않습니다.
 - 종료 시 반드시 **`local.cfg 복원 → 물리 모니터 복귀 확인 → VDD OFF`** 순서를 지킵니다.
 - Sunshine watchdog은 **모니터 토폴로지/VDD를 절대 변경하지 않고** Sunshine 서비스/프로세스/로컬 포트만 감시합니다.
+- watchdog은 반복 재시작 방지를 위해 cooldown을 사용하며, 서비스 crash 이벤트와 1시간 보조 점검을 함께 사용합니다.
 
 ## 파일 구성
 
@@ -112,15 +115,75 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\suns
 ```
 
 6. 비정상 종료/강제 재부팅 대비를 위해 로그인 자동 복구 작업을 등록합니다.
-7. Moonlight에서 PC가 회색/offline으로 남는 상황 대비로 Sunshine watchdog을 등록합니다.
+7. Moonlight에서 PC가 회색/offline으로 남는 상황 대비로 Sunshine watchdog을 설치합니다.
+
+## Sunshine watchdog 설치 및 검증
+
+관리자 PowerShell에서 두 스크립트를 `C:\SunshineScripts\`에 둔 뒤 등록합니다.
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\register-sunshine-watchdog.ps1"
 ```
 
-watchdog은 Service Control Manager 7031/7034 crash 이벤트에 즉시 반응하고, 이벤트를 놓치거나 서비스가 hang 상태인 경우를 위해 1시간마다 보조 점검합니다. 로그는 `C:\SunshineLogs\watchdog\`에 저장됩니다.
+정상 등록 시 다음 두 작업이 생성됩니다.
+
+```text
+Sunshine Watchdog - Crash Event
+Sunshine Watchdog - Hourly
+```
+
+등록 상태 확인:
+
+```powershell
+Get-ScheduledTask | Where-Object TaskName -like "Sunshine Watchdog*"
+```
+
+두 작업 모두 `Ready` 상태면 정상입니다.
+
+watchdog 자체를 한 번 수동 실행해 health check를 검증합니다.
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\sunshine-watchdog.ps1"
+```
+
+정상 예시:
+
+```text
+CHECK service='SunshineService' status='Running' process=True tcp47989=True tcp47990=True
+HEALTHY no action required.
+```
+
+로그 확인:
+
+```powershell
+Get-Content "C:\SunshineLogs\watchdog\sunshine-watchdog.log" -Tail 20
+```
+
+watchdog은 다음 방식으로 동작합니다.
+
+- Service Control Manager의 7031/7034 비정상 종료 이벤트 발생 시 즉시 health check
+- 이벤트가 없거나 hang 형태로 남는 경우를 위해 1시간마다 보조 health check
+- Sunshine 서비스/프로세스/로컬 포트가 비정상일 때만 Sunshine 서비스 재시작
+- VDD나 물리 모니터 상태는 변경하지 않음
+- 짧은 시간에 반복 재시작되는 것을 막기 위한 cooldown 적용
 
 자세한 절차는 [docs/setup.ko.md](docs/setup.ko.md)와 [Sunshine Watchdog](docs/sunshine-watchdog.ko.md)를 참고하세요.
+
+## 문제 발생 시
+
+Moonlight에서 PC가 회색/offline으로 보이는 경우 가능하면 재부팅하기 전에 다음 로그를 먼저 확인합니다.
+
+```powershell
+Get-Content "C:\SunshineLogs\watchdog\sunshine-watchdog.log" -Tail 50
+```
+
+모니터가 보이지 않거나 디스플레이 전환 이상이 의심되면:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\collect-display-diagnostics.ps1"
+```
+
+물리 모니터 긴급 복구가 필요한 경우 먼저 `local.cfg`를 복원하고, 화면 복귀를 확인한 뒤에만 VDD 종료 절차를 진행합니다.
 
 ## 안전 주의
 
