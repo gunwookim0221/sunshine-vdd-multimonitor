@@ -14,7 +14,7 @@ This repository documents a working setup built around:
 - Moonlight
 - Virtual Display Driver (VDD by MTT)
 - NirSoft MultiMonitorTool
-- PowerShell prep/undo scripts
+- PowerShell session/recovery/watchdog scripts
 
 ## Official downloads
 
@@ -22,8 +22,6 @@ This repository documents a working setup built around:
 - Moonlight: https://moonlight-stream.org/
 - Virtual Display Driver (VDD by MTT): https://github.com/VirtualDrivers/Virtual-Display-Driver/releases
 - NirSoft MultiMonitorTool: https://www.nirsoft.net/utils/multi_monitor_tool.html
-
-Prefer the official project pages above rather than third-party mirrors.
 
 The final design is:
 
@@ -41,29 +39,37 @@ Moonlight session start
   Verify VDD is the only active display and is Primary
 
 Moonlight session end
-  Restore the saved physical-monitor layout from local.cfg
+  Restore local.cfg
   Verify physical displays are back
   Disable VDD
+
+Sunshine availability protection
+  React to service crash events
+  Run one lightweight hourly fallback check
+  Restart only Sunshine when unhealthy
 ```
 
 ## Important design choices
 
-- Do not hard-code `DISPLAY5`, `DISPLAY7`, etc. Windows can renumber DISPLAY names during topology changes, not only across reboots.
-- v4.1 chooses a stable command target in this order: Serial Number -> full Monitor ID -> Short Monitor ID.
-- Resolve all physical-monitor identifiers before changing topology, then disable them in **one MultiMonitorTool `/disable` invocation**.
-- Verify the post-condition: exactly one active display, the VDD, and it is Primary. If verification fails, attempt `local.cfg` rollback immediately.
-- Leave Sunshine `output_name` / Display Device ID blank so Sunshine captures the current primary display.
-- Set Sunshine Display Device Configuration to disabled. The PowerShell scripts own the monitor topology.
+- Never hard-code `DISPLAY5`, `DISPLAY7`, etc.; Windows can renumber DISPLAY names during topology changes.
+- v4.1 chooses stable monitor command identifiers in this order: Serial Number -> full Monitor ID -> Short Monitor ID.
+- Resolve all physical-monitor identifiers before changing topology, then disable them in one MultiMonitorTool `/disable` invocation.
+- Verify exactly one active display remains, the VDD, and it is Primary. Roll back to `local.cfg` on verification failure.
+- Leave Sunshine `output_name` / Display Device ID blank and disable Sunshine Display Device Configuration.
 - Do not rely on Sunshine `ensure_only_display` for this workflow.
-- Always restore `local.cfg` before disabling VDD. Reversing that order can leave you with zero visible displays.
+- Always restore `local.cfg` before disabling VDD.
+- The Sunshine watchdog never changes monitor topology or VDD state; it only checks Sunshine service/process/local-port health.
 
 ## Files
 
 - `scripts/sunshine-remote-on.ps1` — session start (v4.1)
 - `scripts/sunshine-remote-off.ps1` — session end / restore
-- `scripts/sunshine-boot-recovery.ps1` — logon-time physical-monitor recovery safety net
-- `scripts/register-boot-recovery.ps1` — register/remove the recovery scheduled task
-- `scripts/collect-display-diagnostics.ps1` — capture state during a failure
+- `scripts/sunshine-boot-recovery.ps1` — logon-time monitor recovery safety net
+- `scripts/register-boot-recovery.ps1` — register/remove monitor recovery task
+- `scripts/collect-display-diagnostics.ps1` — capture display diagnostics
+- `scripts/sunshine-watchdog.ps1` — Sunshine health check / auto restart
+- `scripts/register-sunshine-watchdog.ps1` — register crash-event + hourly watchdog tasks
+- `docs/sunshine-watchdog.md` — watchdog setup and limitations
 - `docs/safety-and-diagnostics.md` — recovery and diagnostic logging
 - `docs/setup.md` — full setup guide
 - `docs/troubleshooting.md` — failure modes and fixes
@@ -79,7 +85,7 @@ Moonlight session end
 - VDD by MTT / Virtual Display Driver
 - NirSoft MultiMonitorTool
 
-Recommended paths used by the scripts:
+Recommended paths:
 
 ```text
 C:\SunshineScripts\
@@ -88,18 +94,11 @@ C:\SunshineTools\multimonitortool\MultiMonitorTool.exe
 
 ## Quick setup
 
-1. Download and install the components from the official links above.
+1. Install the components.
 2. Put the PowerShell scripts in `C:\SunshineScripts\`.
-3. With only the physical monitors in the exact normal arrangement, save:
-
-```powershell
-& "C:\SunshineTools\multimonitortool\MultiMonitorTool.exe" /SaveConfig "C:\SunshineTools\multimonitortool\local.cfg"
-```
-
-4. In Sunshine:
-   - Display Device ID / `output_name`: **blank**
-   - Display Device Configuration: **disabled**
-   - Prep command (elevated):
+3. Save a clean `local.cfg` with VDD off and the physical monitors in their normal layout.
+4. Leave Sunshine Display Device ID / `output_name` blank and disable Display Device Configuration.
+5. Configure one elevated Prep Command pair:
 
 ```text
 Do:
@@ -109,12 +108,16 @@ Undo:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\sunshine-remote-off.ps1"
 ```
 
-5. Test the scripts manually before connecting them to Sunshine.
-6. For crash/forced-reboot protection, register the logon recovery task described in [Safety Net and Diagnostics](docs/safety-and-diagnostics.md).
+6. Register the logon monitor-recovery safety net.
+7. Register the Sunshine watchdog for grey/offline Moonlight host cases:
 
-The v4.1 scripts automatically write transition logs under `C:\SunshineLogs\`.
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\register-sunshine-watchdog.ps1"
+```
 
-See [docs/setup.md](docs/setup.md) for the full procedure.
+The watchdog reacts to Service Control Manager 7031/7034 crash events and also performs one lightweight hourly fallback check. Logs are written under `C:\SunshineLogs\watchdog\`.
+
+See [Setup Guide](docs/setup.md) and [Sunshine Watchdog](docs/sunshine-watchdog.md).
 
 ## Safety note
 
