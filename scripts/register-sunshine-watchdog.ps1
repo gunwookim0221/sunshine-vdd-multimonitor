@@ -17,7 +17,12 @@ $HourlyTask = "Sunshine Watchdog - Hourly"
 
 function Remove-TaskIfExists {
     param([string]$TaskName)
-    schtasks.exe /Delete /TN $TaskName /F 2>$null | Out-Null
+
+    $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+    if ($task) {
+        Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
+        Write-Host "Removed existing task: $TaskName"
+    }
 }
 
 if ($Remove) {
