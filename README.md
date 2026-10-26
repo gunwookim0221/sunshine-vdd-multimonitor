@@ -8,6 +8,8 @@ Automate Sunshine/Moonlight on Windows when the host has two or more physical mo
 
 Typical multi-monitor Sunshine setups can become awkward on a phone: the streamed desktop is too wide, apps open on the wrong physical monitor, and disabling a virtual display at the wrong time can leave Windows with no visible output.
 
+The repository also includes a separate Sunshine watchdog for cases where the PC is still running but Sunshine becomes unhealthy and Moonlight shows the host as grey/offline.
+
 This repository documents a working setup built around:
 
 - Sunshine
@@ -59,6 +61,7 @@ Sunshine availability protection
 - Do not rely on Sunshine `ensure_only_display` for this workflow.
 - Always restore `local.cfg` before disabling VDD.
 - The Sunshine watchdog never changes monitor topology or VDD state; it only checks Sunshine service/process/local-port health.
+- The watchdog uses a restart cooldown and combines crash-event triggers with a lightweight hourly fallback check.
 
 ## Files
 
@@ -109,15 +112,75 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\suns
 ```
 
 6. Register the logon monitor-recovery safety net.
-7. Register the Sunshine watchdog for grey/offline Moonlight host cases:
+7. Install the Sunshine watchdog for grey/offline Moonlight host cases.
+
+## Sunshine watchdog installation and verification
+
+Place these two scripts in `C:\SunshineScripts\` and run the registration script from an elevated PowerShell:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\register-sunshine-watchdog.ps1"
 ```
 
-The watchdog reacts to Service Control Manager 7031/7034 crash events and also performs one lightweight hourly fallback check. Logs are written under `C:\SunshineLogs\watchdog\`.
+A successful registration creates:
+
+```text
+Sunshine Watchdog - Crash Event
+Sunshine Watchdog - Hourly
+```
+
+Verify the tasks:
+
+```powershell
+Get-ScheduledTask | Where-Object TaskName -like "Sunshine Watchdog*"
+```
+
+Both tasks should report `Ready`.
+
+Run one manual watchdog health check:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\sunshine-watchdog.ps1"
+```
+
+Healthy example:
+
+```text
+CHECK service='SunshineService' status='Running' process=True tcp47989=True tcp47990=True
+HEALTHY no action required.
+```
+
+Check the log:
+
+```powershell
+Get-Content "C:\SunshineLogs\watchdog\sunshine-watchdog.log" -Tail 20
+```
+
+The watchdog behavior is:
+
+- reacts immediately to Service Control Manager 7031/7034 unexpected-termination events
+- performs one lightweight hourly fallback check for hang/offline cases that produce no crash event
+- restarts Sunshine only when its service/process/local ports are unhealthy
+- never changes VDD or physical-monitor topology
+- uses a restart cooldown to avoid restart loops
 
 See [Setup Guide](docs/setup.md) and [Sunshine Watchdog](docs/sunshine-watchdog.md).
+
+## When something fails
+
+If Moonlight shows the host as grey/offline, preferably inspect the watchdog log before rebooting:
+
+```powershell
+Get-Content "C:\SunshineLogs\watchdog\sunshine-watchdog.log" -Tail 50
+```
+
+If the physical monitors are missing or display switching looks wrong, collect diagnostics:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\collect-display-diagnostics.ps1"
+```
+
+For emergency physical-monitor recovery, restore `local.cfg` first and verify visible physical output before disabling VDD.
 
 ## Safety note
 
