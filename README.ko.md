@@ -14,7 +14,7 @@
 - Moonlight
 - Virtual Display Driver (VDD by MTT)
 - NirSoft MultiMonitorTool
-- PowerShell 시작/종료 스크립트
+- PowerShell 시작/종료/복구/watchdog 스크립트
 
 ## 공식 다운로드
 
@@ -44,6 +44,11 @@ Moonlight 종료
   local.cfg로 물리 모니터 배치 복원
   물리 모니터 복구 확인
   VDD OFF
+
+Sunshine 가용성 보호
+  서비스 crash 이벤트 발생 시 watchdog 즉시 확인
+  1시간마다 보조 health check
+  Sunshine만 비정상이면 서비스 자동 재시작
 ```
 
 ## 핵심 설계 원칙
@@ -56,6 +61,7 @@ Moonlight 종료
 - Sunshine의 디스플레이 장치 구성은 **사용 안 함**으로 둡니다. 모니터 토폴로지는 PowerShell 스크립트가 전담합니다.
 - 이 구성에서는 Sunshine의 `ensure_only_display`에 의존하지 않습니다.
 - 종료 시 반드시 **`local.cfg 복원 → 물리 모니터 복귀 확인 → VDD OFF`** 순서를 지킵니다.
+- Sunshine watchdog은 **모니터 토폴로지/VDD를 절대 변경하지 않고** Sunshine 서비스/프로세스/로컬 포트만 감시합니다.
 
 ## 파일 구성
 
@@ -64,6 +70,9 @@ Moonlight 종료
 - `scripts/sunshine-boot-recovery.ps1` — 로그인 시 물리 모니터 자동 복구 안전장치
 - `scripts/register-boot-recovery.ps1` — 복구 작업 스케줄러 등록/제거
 - `scripts/collect-display-diagnostics.ps1` — 문제 발생 시 즉시 상태 수집
+- `scripts/sunshine-watchdog.ps1` — Sunshine health check / 자동 재시작
+- `scripts/register-sunshine-watchdog.ps1` — crash 이벤트 + 1시간 보조 watchdog 등록/제거
+- `docs/sunshine-watchdog.ko.md` — watchdog 설치/동작/제한 사항
 - `docs/safety-and-diagnostics.ko.md` — 자동 복구와 원인 추적 로그
 - `docs/setup.ko.md` — 전체 설치 및 설정
 - `docs/troubleshooting.ko.md` — 문제 해결
@@ -90,16 +99,9 @@ C:\SunshineTools\multimonitortool\MultiMonitorTool.exe
 
 1. 위 공식 링크에서 필요한 프로그램을 내려받아 설치합니다.
 2. PowerShell 스크립트를 `C:\SunshineScripts\`에 둡니다.
-3. VDD를 끄고 물리 모니터만 평소 배치로 정확히 맞춘 뒤 다음 명령으로 `local.cfg`를 저장합니다.
-
-```powershell
-& "C:\SunshineTools\multimonitortool\MultiMonitorTool.exe" /SaveConfig "C:\SunshineTools\multimonitortool\local.cfg"
-```
-
-4. Sunshine 설정:
-   - 디스플레이 장치 ID / `output_name`: **빈칸**
-   - 디스플레이 장치 구성: **사용 안 함**
-   - 명령 준비(관리자 권한):
+3. VDD를 끄고 물리 모니터만 평소 배치로 정확히 맞춘 뒤 `local.cfg`를 저장합니다.
+4. Sunshine 설정에서 Display Device ID / `output_name`은 **빈칸**, Display Device Configuration은 **사용 안 함**으로 둡니다.
+5. Prep Commands는 다음 한 세트만 관리자 권한으로 사용합니다.
 
 ```text
 명령 수행:
@@ -109,12 +111,16 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\suns
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\sunshine-remote-off.ps1"
 ```
 
-5. Sunshine에 연결하기 전에 두 스크립트를 수동으로 왕복 테스트합니다.
-6. 비정상 종료/강제 재부팅 대비를 위해 [안전장치 및 진단 로그](docs/safety-and-diagnostics.ko.md)의 로그인 자동 복구 작업도 등록하는 것을 권장합니다.
+6. 비정상 종료/강제 재부팅 대비를 위해 로그인 자동 복구 작업을 등록합니다.
+7. Moonlight에서 PC가 회색/offline으로 남는 상황 대비로 Sunshine watchdog을 등록합니다.
 
-v4.1 스크립트는 모든 전환 로그를 `C:\SunshineLogs\`에 자동 저장합니다.
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\register-sunshine-watchdog.ps1"
+```
 
-자세한 절차는 [docs/setup.ko.md](docs/setup.ko.md)를 참고하세요.
+watchdog은 Service Control Manager 7031/7034 crash 이벤트에 즉시 반응하고, 이벤트를 놓치거나 서비스가 hang 상태인 경우를 위해 1시간마다 보조 점검합니다. 로그는 `C:\SunshineLogs\watchdog\`에 저장됩니다.
+
+자세한 절차는 [docs/setup.ko.md](docs/setup.ko.md)와 [Sunshine Watchdog](docs/sunshine-watchdog.ko.md)를 참고하세요.
 
 ## 안전 주의
 
