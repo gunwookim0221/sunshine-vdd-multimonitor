@@ -81,7 +81,8 @@ Sunshine 가용성 보호
 - `docs/troubleshooting.ko.md` — 문제 해결
 - `docs/recovery.ko.md` — 블랙스크린 복구
 - `docs/lessons-learned.ko.md` — 시행착오와 원인
-- `docs/rca-2026-10-04-display-renumbering.ko.md` — 실제 장애 RCA
+- `docs/rca-2026-10-04-display-renumbering.ko.md` — DISPLAY 재번호화 실제 장애 RCA
+- `docs/rca-2026-11-08-samsung-display-enumeration.ko.md` — Samsung G9 일시적 디스플레이 열거 실패 RCA
 
 ## 요구 사항
 
@@ -188,3 +189,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\coll
 ## 안전 주의
 
 이 구성은 원격 세션 중 물리 모니터를 의도적으로 비활성화합니다. 실험하기 전에 반드시 [docs/recovery.ko.md](docs/recovery.ko.md)의 복구 방법을 확인해 두세요.
+
+
+## 추가 RCA
+
+- [2026-11-08 Samsung G9 일시적 디스플레이 열거 실패](docs/rca-2026-11-08-samsung-display-enumeration.ko.md) — 문제 시점 MultiMonitorTool 목록에서 Samsung 행 자체가 사라지고 PnP가 `Unknown`이었던 사례. Sunshine 단순 disable과 구분해 기록합니다.
