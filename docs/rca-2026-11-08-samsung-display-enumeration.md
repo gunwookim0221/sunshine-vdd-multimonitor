@@ -83,3 +83,17 @@ The important distinction is whether the affected monitor remains listed as `Act
 Treat this as separate from the Sunshine ON/OFF, rollback, and watchdog logic.
 
 If the same pattern recurs, accumulate the same diagnostics first. If recurrence is confirmed, expand the investigation to DP cable/port changes, monitor firmware, and NVIDIA driver history.
+
+
+## 2026-11-09 recurrence and verification fix
+
+The same Samsung G9 non-enumeration symptom recurred. During the failure, the Samsung PnP instances again reported `Unknown`, and applying `local.cfg` alone did not restore the ultrawide.
+
+After starting and then ending a Moonlight session, the OFF path applied `local.cfg`. The saved `02-after-local-restore.csv` showed both MSI and Samsung physical monitors as `Active=Yes`. However, the previous OFF script continued to receive 1 from `[System.Windows.Forms.Screen]::AllScreens.Count` and incorrectly entered the fail-safe path.
+
+This incident therefore has two distinct layers:
+
+1. a real enumeration failure where the Samsung temporarily disappears from the current Windows/MultiMonitorTool display set
+2. a separate recovery-verification bug where WinForms screen enumeration can remain stale immediately after topology restoration
+
+Starting with v4.2, OFF and ON rollback verify recovery from a fresh MultiMonitorTool CSV by requiring at least two `Active=Yes` non-VDD physical monitors. VDD is disabled only after that condition is satisfied.
