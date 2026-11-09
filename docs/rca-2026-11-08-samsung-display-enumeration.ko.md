@@ -83,3 +83,17 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\coll
 현재 Sunshine ON/OFF, rollback, watchdog과는 별개의 물리 디스플레이 열거 문제로 취급한다.
 
 재발 시 동일한 패턴이 반복되는지 로그를 누적하고, 반복성이 확인되면 DP 포트/케이블 교체, 모니터 펌웨어, NVIDIA 드라이버 이력까지 범위를 넓혀 점검한다.
+
+
+## 2026-11-09 재발 및 검증 로직 수정
+
+같은 Samsung G9 미열거 증상이 재발했다. 문제 상태에서는 Samsung PnP 인스턴스가 다시 `Unknown`이었고 `local.cfg` 단독 적용으로는 와이드 모니터가 복구되지 않았다.
+
+이후 Moonlight 세션을 시작했다가 종료하면서 OFF 경로의 `local.cfg` 복원이 실행되었고, 저장된 `02-after-local-restore.csv`에는 MSI와 Samsung 두 물리 모니터가 모두 `Active=Yes`로 확인되었다. 그러나 기존 OFF 스크립트는 `[System.Windows.Forms.Screen]::AllScreens.Count`가 계속 1을 반환해 fail-safe로 잘못 판정했다.
+
+따라서 이 현상은 두 층으로 분리한다.
+
+1. Samsung이 한동안 Windows/MultiMonitorTool 현재 목록에서 사라지는 실제 열거 문제
+2. 복구 직후 WinForms screen enumeration이 stale하여 정상 복구를 실패로 판단하는 별도 검증 버그
+
+v4.2부터 OFF 및 ON rollback은 fresh MultiMonitorTool CSV에서 `Active=Yes`인 비-VDD 물리 모니터가 2대 이상인지 직접 확인한다. 이 조건을 만족한 경우에만 VDD를 끈다.
