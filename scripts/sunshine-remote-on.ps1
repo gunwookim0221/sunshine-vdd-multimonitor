@@ -1,5 +1,5 @@
 # Sunshine/Moonlight remote-session start script
-# v4.1: diagnostics + stable monitor identifiers + post-switch verification
+# v4.2: diagnostics + stable monitor identifiers + fresh MultiMonitorTool topology verification
 #
 # Key rule:
 # Never disable physical monitors by \\.\DISPLAYx one-by-one. Windows can renumber
@@ -103,17 +103,6 @@ function Get-StableMonitorIdentifier {
     return $null
 }
 
-function Get-ActiveScreenCount {
-    try {
-        Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
-        return [System.Windows.Forms.Screen]::AllScreens.Count
-    }
-    catch {
-        Write-Log "Screen enumeration failed: $($_.Exception.Message)"
-        return 0
-    }
-}
-
 function Restore-LocalFailSafe {
     Write-Log "ROLLBACK_START: attempting local.cfg restore."
 
@@ -125,10 +114,17 @@ function Restore-LocalFailSafe {
     & $MultiMonitorTool /LoadConfig $LocalConfig
     Start-Sleep -Seconds 3
 
-    $screenCount = Get-ActiveScreenCount
-    Write-Log "ROLLBACK active Windows screens=$screenCount"
+    $rows = Get-MonitorRows
+    $physicalActiveRows = @($rows | Where-Object {
+        $_.Active -eq 'Yes' -and -not (Test-IsVddRow $_)
+    })
+    $physicalSummary = @($physicalActiveRows | ForEach-Object {
+        "name=$($_.Name),short=$($_.'Short Monitor ID'),monitor=$($_.'Monitor Name'),primary=$($_.Primary)"
+    }) -join ' ; '
 
-    if ($screenCount -ge 2) {
+    Write-Log "ROLLBACK_VERIFY physicalActiveCount=$($physicalActiveRows.Count) physical='$physicalSummary'"
+
+    if ($physicalActiveRows.Count -ge 2) {
         $device = Get-MttVddDevice
         if ($device -and $device.Status -in @("OK", "Started", "Degraded")) {
             Write-Log "ROLLBACK verified physical displays; disabling VDD PnP device."
@@ -138,7 +134,7 @@ function Restore-LocalFailSafe {
         Write-Log "ROLLBACK_SUCCESS"
     }
     else {
-        Write-Log "ROLLBACK_FAIL_SAFE: fewer than two active screens; VDD left unchanged."
+        Write-Log "ROLLBACK_FAIL_SAFE: fewer than two active physical monitors; VDD left unchanged."
     }
 }
 
