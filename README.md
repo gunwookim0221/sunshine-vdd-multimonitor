@@ -80,7 +80,7 @@ Sunshine availability protection
 - `docs/recovery.md` — black-screen recovery procedure
 - `docs/lessons-learned.md` — what failed and why
 - `docs/rca-2026-10-04-display-renumbering.md` — DISPLAY renumbering incident RCA
-- `docs/rca-2026-11-08-samsung-display-enumeration.md` — temporary Samsung G9 display-enumeration RCA
+- `docs/rca-2026-11-08-samsung-display-enumeration.md` — Samsung G9 missing-display + recovery-verification RCA
 
 ## Requirements
 
@@ -191,4 +191,4 @@ This setup intentionally disables physical displays during a remote session. Kee
 
 ## Additional RCA
 
-- [2026-11-08 Temporary Samsung G9 display-enumeration failure](docs/rca-2026-11-08-samsung-display-enumeration.md) — incident where the Samsung row disappeared from the current MultiMonitorTool list and PnP reported `Unknown`, distinguished from a normal Sunshine disable state.
+- [2026-11-08~09 Samsung G9 missing-display and recovery-verification issue](docs/rca-2026-11-08-samsung-display-enumeration.md) — records the missing-display observation and the v4.2 recovery-verification false-negative fix; the original cause remains unconfirmed.
