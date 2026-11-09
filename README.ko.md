@@ -83,7 +83,7 @@ Sunshine 가용성 보호
 - `docs/recovery.ko.md` — 블랙스크린 복구
 - `docs/lessons-learned.ko.md` — 시행착오와 원인
 - `docs/rca-2026-10-04-display-renumbering.ko.md` — DISPLAY 재번호화 실제 장애 RCA
-- `docs/rca-2026-11-08-samsung-display-enumeration.ko.md` — Samsung G9 일시적 디스플레이 열거 실패 RCA
+- `docs/rca-2026-11-08-samsung-display-enumeration.ko.md` — Samsung G9 미표시 + 복구 검증 RCA
 
 ## 요구 사항
 
@@ -194,4 +194,4 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\coll
 
 ## 추가 RCA
 
-- [2026-11-08 Samsung G9 일시적 디스플레이 열거 실패](docs/rca-2026-11-08-samsung-display-enumeration.ko.md) — 문제 시점 MultiMonitorTool 목록에서 Samsung 행 자체가 사라지고 PnP가 `Unknown`이었던 사례. Sunshine 단순 disable과 구분해 기록합니다.
+- [2026-11-08~09 Samsung G9 미표시 및 복구 검증 문제](docs/rca-2026-11-08-samsung-display-enumeration.ko.md) — Samsung이 현재 목록에서 사라진 관측과 v4.2 복구 검증 false-negative 수정 기록. 최초 원인은 아직 미확정입니다.
