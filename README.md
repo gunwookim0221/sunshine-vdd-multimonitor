@@ -54,9 +54,10 @@ Sunshine availability protection
 ## Important design choices
 
 - Never hard-code `DISPLAY5`, `DISPLAY7`, etc.; Windows can renumber DISPLAY names during topology changes.
-- v4.1 chooses stable monitor command identifiers in this order: Serial Number -> full Monitor ID -> Short Monitor ID.
+- v4.2 chooses stable monitor command identifiers in this order: Serial Number -> full Monitor ID -> Short Monitor ID, and uses fresh MultiMonitorTool topology for rollback verification.
 - Resolve all physical-monitor identifiers before changing topology, then disable them in one MultiMonitorTool `/disable` invocation.
 - Verify exactly one active display remains, the VDD, and it is Primary. Roll back to `local.cfg` on verification failure.
+- OFF/rollback recovery verification uses a **fresh MultiMonitorTool CSV and counts `Active=Yes` non-VDD physical monitors**, rather than WinForms `Screen.AllScreens.Count`, to avoid stale topology false negatives immediately after display changes.
 - Leave Sunshine `output_name` / Display Device ID blank and disable Sunshine Display Device Configuration.
 - Do not rely on Sunshine `ensure_only_display` for this workflow.
 - Always restore `local.cfg` before disabling VDD.
@@ -65,7 +66,7 @@ Sunshine availability protection
 
 ## Files
 
-- `scripts/sunshine-remote-on.ps1` — session start (v4.1)
+- `scripts/sunshine-remote-on.ps1` — session start (v4.2)
 - `scripts/sunshine-remote-off.ps1` — session end / restore
 - `scripts/sunshine-boot-recovery.ps1` — logon-time monitor recovery safety net
 - `scripts/register-boot-recovery.ps1` — register/remove monitor recovery task
