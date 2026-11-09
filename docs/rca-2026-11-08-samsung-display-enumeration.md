@@ -1,14 +1,25 @@
-# RCA 2026-11-08 — Temporary Samsung G9 display enumeration failure
+# RCA 2026-11-08~09 — Samsung G9 missing display and recovery-verification issue
 
 ## Summary
 
-On 2026-11-08 the Samsung LC49G95T ultrawide stopped appearing during local use while the MSI MP242 portrait monitor remained active.
+On 2026-11-08 and 2026-11-09 the Samsung LC49G95T ultrawide repeatedly became unavailable while the MSI MP242 remained visible.
 
-The captured evidence did not show the Samsung simply remaining present with `Active=No`. Instead, the Samsung row was completely absent from the current MultiMonitorTool display list. At the same time, `Get-PnpDevice -Class Monitor` showed existing Samsung instances as `Unknown`.
+The observed facts are:
 
-Because of that, restoring `local.cfg` recovered the MSI monitor but could not immediately recover the Samsung. After the physical display link/power path was renegotiated, the current Samsung instance returned to `OK` and the normal topology was restored.
+- In some failure captures, the Samsung row was **absent entirely** from the current MultiMonitorTool display list.
+- At the same time, `Get-PnpDevice -Class Monitor` reported Samsung instances as `Unknown`.
+- Applying `local.cfg` alone did not always restore the Samsung immediately.
+- On 2026-11-09, power-cycling the monitor did not recover it, but after one Moonlight start/end cycle, the OFF path applied `local.cfg` and both MSI and Samsung were present as `Active=Yes`.
+- Immediately afterward, the previous OFF script still received 1 from `[System.Windows.Forms.Screen]::AllScreens.Count` and **incorrectly treated a successful recovery as a failure**.
 
-## Observed state
+Two conclusions are therefore supported:
+
+1. The Samsung did at times disappear from the current Windows/MultiMonitorTool display set.
+2. The previous recovery verification based on WinForms `Screen.AllScreens.Count` had a stale-state false-negative bug.
+
+**The original cause of the Samsung missing-display condition is not yet established.** Current evidence is insufficient to attribute it specifically to DP cable/port, monitor power/EDID/hot-plug behavior, NVIDIA/Windows display state, or prior Sunshine/VDD transitions.
+
+## 2026-11-08 observations
 
 Problem-time MultiMonitorTool CSV:
 
@@ -16,56 +27,87 @@ Problem-time MultiMonitorTool CSV:
 - VDD by MTT: `Active=No`
 - Samsung LC49G95T: **absent from the list**
 
-Problem-time PnP state:
+Problem-time PnP:
 
 - VDD by MTT: `OK`
 - MSI MP242: `OK`
-- Samsung LC49G95T: two existing instances reported `Unknown`
+- Samsung LC49G95T: existing instances reported `Unknown`
 
-Recovered PnP state:
+At the time, this suggested a DP/EDID/hot-plug layer problem, but later recurrence does not justify treating that as a confirmed root cause.
 
-- MSI MP242: `OK`
-- current Samsung LC49G95T instance: `OK`
-- older Samsung instance: `Unknown`
-- inactive VDD instance: `Unknown`
+## 2026-11-09 recurrence
 
-## Impact
+The same symptom recurred.
 
-- Ultrawide output unavailable
-- Powering the Samsung caused Windows to rebuild display topology and the MSI could temporarily disappear as well
-- Reapplying `local.cfg` repeatedly recovered the MSI
-- Full recovery was not possible until Windows enumerated the Samsung again as a current connected display
+Before recovery:
 
-## Assessment
+- Samsung PnP instances: `Unknown`
+- applying `local.cfg` alone: no immediate Samsung recovery
+- monitor power-cycle: no recovery
 
-This differs from a normal Sunshine/MultiMonitorTool `/disable` state.
+A Moonlight session was then started and ended once.
 
-If the monitor were merely disabled, the Samsung would normally still be expected to appear in the MultiMonitorTool list with `Active=No`. During this incident the Samsung row was absent entirely and PnP did not report a healthy current connection.
+The OFF path's saved `02-after-local-restore.csv` showed:
 
-Based on the available evidence, classify this as a **temporary Windows/NVIDIA display-enumeration or DP/EDID/hot-plug renegotiation failure affecting the Samsung monitor**.
+- MSI MP242: `Active=Yes`
+- Samsung LC49G95T: `Active=Yes`
+- VDD: `Active=No`
 
-The collected data is not sufficient to attribute the direct cause specifically to the cable, monitor firmware, or GPU driver.
+So the **actual physical-monitor recovery succeeded**.
 
-## Recovery procedure
+However, the previous OFF script logged:
 
-Do not disable VDD first when physical monitors are missing.
-
-1. Capture current state
-2. Check `Get-PnpDevice -Class Monitor`
-3. Check whether the target physical monitor exists in the MultiMonitorTool CSV
-4. Restore `local.cfg`
-5. If the monitor is absent from enumeration, renegotiate the physical link/power path
-6. Run `pnputil /scan-devices`
-7. Run `DisplaySwitch.exe /extend`
-8. Reapply `local.cfg` if needed
-
-Emergency restore command:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& 'C:\SunshineTools\multimonitortool\MultiMonitorTool.exe' /LoadConfig 'C:\SunshineTools\multimonitortool\local.cfg'"
+```text
+Active Windows screens=1
+...
+FAIL_SAFE
 ```
 
-## Data to collect on recurrence
+This did not match the actual MultiMonitorTool topology.
+
+## Confirmed code bug
+
+The old OFF and ON rollback verification used:
+
+```powershell
+[System.Windows.Forms.Screen]::AllScreens.Count
+```
+
+Immediately after topology changes this value can remain stale, producing a false negative even when two physical displays have already been restored.
+
+### v4.2 fix
+
+Both OFF and ON rollback now generate a fresh MultiMonitorTool CSV and directly require:
+
+```text
+Active=Yes
+AND
+non-VDD physical monitor
+AND
+count >= 2
+```
+
+Only after that condition is satisfied is physical recovery considered successful and VDD allowed to be disabled.
+
+## Current assessment
+
+**Confirmed:**
+
+- the Samsung can temporarily disappear from the current display set
+- WinForms screen-count recovery verification can produce a false negative
+
+**Not yet confirmed:**
+
+- the original cause of the Samsung missing-display condition
+- whether DP cable/port or monitor hardware is responsible
+- whether NVIDIA/Windows display state is responsible
+- whether Sunshine/VDD transition is a prerequisite or contributing factor
+
+The earlier statements that recovery occurred because of physical-link/power renegotiation, and that the incident was separate from Sunshine ON/OFF, are withdrawn.
+
+## Data to capture on recurrence
+
+Before recovery:
 
 ```powershell
 Get-PnpDevice -Class Monitor |
@@ -76,24 +118,14 @@ Get-PnpDevice -Class Monitor |
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\collect-display-diagnostics.ps1"
 ```
 
-The important distinction is whether the affected monitor remains listed as `Active=No` or disappears from the current MultiMonitorTool list entirely.
+Then compare fresh MultiMonitorTool CSVs before and after `local.cfg` restoration or a Moonlight ON/OFF cycle.
 
-## Follow-up
+## Safe recovery
 
-Treat this as separate from the Sunshine ON/OFF, rollback, and watchdog logic.
+Do not disable VDD first when physical monitors are missing.
 
-If the same pattern recurs, accumulate the same diagnostics first. If recurrence is confirmed, expand the investigation to DP cable/port changes, monitor firmware, and NVIDIA driver history.
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& 'C:\SunshineTools\multimonitortool\MultiMonitorTool.exe' /LoadConfig 'C:\SunshineTools\multimonitortool\local.cfg'"
+```
 
-
-## 2026-11-09 recurrence and verification fix
-
-The same Samsung G9 non-enumeration symptom recurred. During the failure, the Samsung PnP instances again reported `Unknown`, and applying `local.cfg` alone did not restore the ultrawide.
-
-After starting and then ending a Moonlight session, the OFF path applied `local.cfg`. The saved `02-after-local-restore.csv` showed both MSI and Samsung physical monitors as `Active=Yes`. However, the previous OFF script continued to receive 1 from `[System.Windows.Forms.Screen]::AllScreens.Count` and incorrectly entered the fail-safe path.
-
-This incident therefore has two distinct layers:
-
-1. a real enumeration failure where the Samsung temporarily disappears from the current Windows/MultiMonitorTool display set
-2. a separate recovery-verification bug where WinForms screen enumeration can remain stale immediately after topology restoration
-
-Starting with v4.2, OFF and ON rollback verify recovery from a fresh MultiMonitorTool CSV by requiring at least two `Active=Yes` non-VDD physical monitors. VDD is disabled only after that condition is satisfied.
+Starting with v4.2, recovery success is judged from fresh MultiMonitorTool topology.
