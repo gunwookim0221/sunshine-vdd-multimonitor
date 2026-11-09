@@ -1,8 +1,8 @@
 # Sunshine/Moonlight remote-session end script
-# v4 safety order:
+# v4.2 safety order:
 # 1) Snapshot current state
 # 2) Restore local.cfg FIRST
-# 3) Verify at least two active Windows displays without dxgi-info.exe
+# 3) Verify at least two active PHYSICAL monitors from fresh MultiMonitorTool CSV
 # 4) Only then disable VDD
 # 5) Persist diagnostics
 # Run elevated from Sunshine Prep Commands.
@@ -43,14 +43,30 @@ function Save-MonitorSnapshot {
         Out-File -FilePath $pnp -Encoding utf8
 }
 
-function Get-ActiveScreenCount {
-    try {
-        Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
-        return [System.Windows.Forms.Screen]::AllScreens.Count
-    } catch {
-        Write-Log "Screen enumeration failed: $($_.Exception.Message)"
-        return 0
+function Get-MonitorRows {
+    param([string]$FileName = "current.csv")
+
+    $csv = Join-Path $RunDir $FileName
+    Remove-Item $csv -Force -ErrorAction SilentlyContinue
+    & $MultiMonitorTool /scomma $csv | Out-Null
+    Start-Sleep -Milliseconds 250
+
+    if (-not (Test-Path $csv)) {
+        throw "MultiMonitorTool did not create CSV output."
     }
+
+    return Import-Csv $csv
+}
+
+function Test-IsVddRow {
+    param($Row)
+
+    return (
+        [string]$Row.Adapter -match 'Virtual Display Driver' -or
+        [string]$Row.'Monitor Name' -match 'VDD by MTT' -or
+        [string]$Row.'Short Monitor ID' -match '^MTT' -or
+        [string]$Row.'Device ID' -match 'MttVDD'
+    )
 }
 
 try {
@@ -64,22 +80,30 @@ try {
     & $MultiMonitorTool /LoadConfig $LocalConfig
 
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-    $screenCount = 0
+    $physicalActiveRows = @()
     do {
         Start-Sleep -Milliseconds 750
-        $screenCount = Get-ActiveScreenCount
-        Write-Log "Active Windows screens=$screenCount"
-        if ($screenCount -ge 2) { break }
+        $rows = Get-MonitorRows -FileName "verify-current.csv"
+        $physicalActiveRows = @($rows | Where-Object {
+            $_.Active -eq 'Yes' -and -not (Test-IsVddRow $_)
+        })
+
+        $physicalSummary = @($physicalActiveRows | ForEach-Object {
+            "name=$($_.Name),short=$($_.'Short Monitor ID'),monitor=$($_.'Monitor Name'),primary=$($_.Primary)"
+        }) -join ' ; '
+
+        Write-Log "VERIFY physicalActiveCount=$($physicalActiveRows.Count) physical='$physicalSummary'"
+        if ($physicalActiveRows.Count -ge 2) { break }
     } while ((Get-Date) -lt $deadline)
 
     Save-MonitorSnapshot "02-after-local-restore"
 
-    if ($screenCount -lt 2) {
-        Write-Log "FAIL_SAFE: fewer than two active displays after local.cfg restore. VDD will remain enabled."
+    if ($physicalActiveRows.Count -lt 2) {
+        Write-Log "FAIL_SAFE: fewer than two active physical monitors after local.cfg restore. VDD will remain enabled."
         throw "Physical monitors were not restored. VDD was NOT disabled for safety."
     }
 
-    Write-Log "Physical monitor configuration verified with $screenCount active screens."
+    Write-Log "Physical monitor configuration verified with $($physicalActiveRows.Count) active physical monitors."
 
     $device = Get-MttVdd
     if (-not $device) {
