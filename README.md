@@ -54,10 +54,10 @@ Sunshine availability protection
 ## Important design choices
 
 - Never hard-code `DISPLAY5`, `DISPLAY7`, etc.; Windows can renumber DISPLAY names during topology changes.
-- v4.2 chooses stable monitor command identifiers in this order: Serial Number -> full Monitor ID -> Short Monitor ID, and uses fresh MultiMonitorTool topology for rollback verification.
+- v4.3 chooses stable monitor command identifiers in this order: Serial Number -> full Monitor ID -> Short Monitor ID, and uses fresh MultiMonitorTool topology for rollback verification.
 - Resolve all physical-monitor identifiers before changing topology, then disable them in one MultiMonitorTool `/disable` invocation.
 - Verify exactly one active display remains, the VDD, and it is Primary. Roll back to `local.cfg` on verification failure.
-- OFF/rollback recovery verification uses a **fresh MultiMonitorTool CSV and counts `Active=Yes` non-VDD physical monitors**, rather than WinForms `Screen.AllScreens.Count`, to avoid stale topology false negatives immediately after display changes.
+- OFF/rollback/boot-recovery verification uses **fresh MultiMonitorTool CSV** state rather than WinForms screen count. ON succeeds only after the VDD-only + Primary topology is valid for 3 consecutive checks; boot recovery disables VDD only after at least 2 physical monitors are confirmed for 2 consecutive checks.
 - Leave Sunshine `output_name` / Display Device ID blank and disable Sunshine Display Device Configuration.
 - Do not rely on Sunshine `ensure_only_display` for this workflow.
 - Always restore `local.cfg` before disabling VDD.
@@ -66,7 +66,7 @@ Sunshine availability protection
 
 ## Files
 
-- `scripts/sunshine-remote-on.ps1` — session start (v4.2)
+- `scripts/sunshine-remote-on.ps1` — session start (v4.3)
 - `scripts/sunshine-remote-off.ps1` — session end / restore
 - `scripts/sunshine-boot-recovery.ps1` — logon-time monitor recovery safety net
 - `scripts/register-boot-recovery.ps1` — register/remove monitor recovery task
@@ -192,3 +192,16 @@ This setup intentionally disables physical displays during a remote session. Kee
 ## Additional RCA
 
 - [2026-11-08~09 Samsung G9 missing-display and recovery-verification issue](docs/rca-2026-11-08-samsung-display-enumeration.md) — records the missing-display observation and the v4.2 recovery-verification false-negative fix; the original cause remains unconfirmed.
+
+
+## v4.3 topology convergence verification
+
+The 2026-11-10 recurrence showed that a single verification read immediately after the VDD switch could disagree with a snapshot taken moments later. The Windows display topology was still converging when rollback was triggered.
+
+- ON: require fresh MultiMonitorTool CSV to show exactly one active VDD and Primary for 3 consecutive checks
+- wait up to 15 seconds for convergence before rollback
+- remove WinForms screen count from boot recovery
+- boot recovery: require at least 2 active non-VDD physical monitors for 2 consecutive checks before disabling VDD
+- bounded evidence logs: VERIFY_CONVERGENCE and BOOT_VERIFY
+
+These logs record evidence only and do not change topology or authority.
