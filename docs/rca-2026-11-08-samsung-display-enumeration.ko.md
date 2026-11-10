@@ -132,4 +132,24 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\coll
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& 'C:\SunshineTools\multimonitortool\MultiMonitorTool.exe' /LoadConfig 'C:\SunshineTools\multimonitortool\local.cfg'"
 ```
 
-복구 성공 여부는 v4.2부터 fresh MultiMonitorTool topology로 판단한다.
+복구 성공 여부는 v4.3에서 fresh MultiMonitorTool topology의 연속 안정 상태로 판단한다.
+
+
+## 2026-11-10 재발 — VDD 전환 수렴 race 확인
+
+2026-11-10 로그에서는 Samsung이 처음부터 사라진 것이 아니라, 오후 Moonlight/VDD 전환 반복 중 특정 실패 이후부터 현재 목록에서 복구되지 않는 흐름이 확인됐다.
+
+특히 ON 검증에서 activeCount=1, activeVddCount=0으로 실패 판정된 직후 snapshot에서는 VDD가 Active=Yes, Primary=Yes로 보이는 경우가 있었다. 즉 단일 검증 read와 직후 snapshot 사이에서도 토폴로지가 변하고 있었다.
+
+앞선 여러 실패는 rollback에서 물리 모니터 2대가 복구됐지만, 이후 한 시도에서는 ROLLBACK_VERIFY physicalActiveCount=1 / ROLLBACK_FAIL_SAFE가 되었고 이후 Samsung 행이 현재 MultiMonitorTool 목록에서 사라진 상태가 지속됐다.
+
+따라서 2026-11-10 기준으로는 **VDD 전환 직후 토폴로지가 수렴하기 전에 실패/rollback을 너무 빨리 시작하는 race가 실제 production 경로의 주요 기여 요인**으로 판단한다. 이것이 Samsung 미열거 현상의 유일한 근본 원인이라고 단정하지는 않는다.
+
+### v4.3 수정
+
+- ON 단일 post-check를 제거하고 최대 15초 수렴 대기
+- VDD-only + Primary 상태가 연속 3회 확인되어야 성공
+- 그 전까지는 rollback하지 않음
+- boot recovery도 WinForms screen count를 제거하고 fresh MultiMonitorTool 기반으로 변경
+- boot recovery는 물리 모니터 2대 이상이 연속 2회 안정된 후에만 VDD를 끔
+- VERIFY_CONVERGENCE / BOOT_VERIFY로 시도 번호, 연속 성공 횟수, 실제 active topology만 기록
