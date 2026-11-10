@@ -149,3 +149,22 @@ As of 2026-11-10, **starting rollback before the VDD transition has converged is
 - remove WinForms screen count from boot recovery
 - require 2+ active physical monitors for 2 consecutive fresh reads before disabling VDD
 - log only bounded evidence markers: VERIFY_CONVERGENCE and BOOT_VERIFY
+
+
+## 2026-11-10 v4.3 runtime validation and recovery after DP port change
+
+A real Moonlight ON/OFF round trip after applying v4.3 produced the following results:
+
+- The ON path's `VERIFY_CONVERGENCE` reached 3 consecutive valid checks and completed with `SESSION_START_SUCCESS`.
+- After OFF applied `local.cfg`, the first check still saw only one physical monitor, but about 2 seconds later the Samsung LC49G95T reappeared in the current MultiMonitorTool set and both physical monitors were `Active=Yes`.
+- OFF then verified both physical monitors, disabled VDD, and completed with `SESSION_END_SUCCESS`.
+- At the time of this successful recovery, the Samsung G9 DP connection had been moved to a different RTX 3080 DP port.
+
+This provides runtime evidence that the v4.3 topology-convergence wait is effective in the actual environment. The DP-port change also correlates with successful recovery, but **it is not sufficient to establish the DP port as the root cause.**
+
+Current status:
+
+- v4.3 ON convergence: runtime PASS
+- OFF physical-monitor recovery: PASS
+- Samsung re-enumeration: PASS
+- different DP port: meaningful correlation, not a confirmed root cause
