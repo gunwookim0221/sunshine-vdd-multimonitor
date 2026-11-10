@@ -153,3 +153,22 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& 'C:\SunshineTools\
 - boot recovery도 WinForms screen count를 제거하고 fresh MultiMonitorTool 기반으로 변경
 - boot recovery는 물리 모니터 2대 이상이 연속 2회 안정된 후에만 VDD를 끔
 - VERIFY_CONVERGENCE / BOOT_VERIFY로 시도 번호, 연속 성공 횟수, 실제 active topology만 기록
+
+
+## 2026-11-10 v4.3 실동작 검증 및 DP 포트 변경 후 복구
+
+v4.3 적용 후 실제 Moonlight ON/OFF 왕복에서 다음이 확인됐다.
+
+- ON 경로의 `VERIFY_CONVERGENCE`가 연속 3회 정상 상태를 확인한 뒤 `SESSION_START_SUCCESS`로 종료됐다.
+- OFF 경로에서 `local.cfg`를 적용한 직후 첫 확인에서는 물리 모니터가 1대였으나, 약 2초 뒤 Samsung LC49G95T가 다시 현재 MultiMonitorTool 목록에 나타나면서 물리 모니터 2대가 모두 `Active=Yes`가 됐다.
+- 이후 OFF는 물리 모니터 2대 복구를 확인한 뒤 VDD를 비활성화하고 `SESSION_END_SUCCESS`로 종료됐다.
+- 이 성공 시점에는 Samsung G9의 DP 연결을 RTX 3080의 다른 DP 포트로 변경한 상태였다.
+
+이 결과는 v4.3의 토폴로지 수렴 대기 방향이 실제 환경에서 유효했음을 보여준다. 또한 새 DP 포트 사용과 복구 성공 사이에 유의미한 시간적 연관이 있으나, **DP 포트가 근본 원인이라고 확정할 수는 없다.**
+
+현재 상태:
+
+- v4.3 ON convergence: 실동작 PASS
+- OFF 물리 모니터 복구: PASS
+- Samsung 재열거: PASS
+- 새 DP 포트 효과: 정황상 유의미, 원인 확정 아님
