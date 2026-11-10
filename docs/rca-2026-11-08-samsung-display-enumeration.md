@@ -128,4 +128,24 @@ Do not disable VDD first when physical monitors are missing.
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& 'C:\SunshineTools\multimonitortool\MultiMonitorTool.exe' /LoadConfig 'C:\SunshineTools\multimonitortool\local.cfg'"
 ```
 
-Starting with v4.2, recovery success is judged from fresh MultiMonitorTool topology.
+Starting with v4.3, recovery success is judged from stable consecutive fresh MultiMonitorTool topology reads.
+
+
+## 2026-11-10 recurrence — VDD topology convergence race identified
+
+The 2026-11-10 logs showed that the Samsung did not simply start the day missing. It remained present initially and then failed to recover after repeated Moonlight/VDD transition failures.
+
+A key observation was that ON verification reported activeCount=1, activeVddCount=0 while a snapshot taken moments later showed the VDD as Active=Yes and Primary=Yes. The topology was still changing between the verification read and the snapshot.
+
+Several earlier failed attempts rolled back to two physical monitors successfully, but a later attempt reached ROLLBACK_VERIFY physicalActiveCount=1 / ROLLBACK_FAIL_SAFE, after which the Samsung remained absent from the current MultiMonitorTool set.
+
+As of 2026-11-10, **starting rollback before the VDD transition has converged is considered a major contributing factor on the actual production path**. This is not claimed as the sole root cause of every Samsung non-enumeration event.
+
+### v4.3 fix
+
+- replace the single ON post-check with a convergence window of up to 15 seconds
+- require VDD-only + Primary state for 3 consecutive fresh reads
+- do not rollback until the convergence window actually fails
+- remove WinForms screen count from boot recovery
+- require 2+ active physical monitors for 2 consecutive fresh reads before disabling VDD
+- log only bounded evidence markers: VERIFY_CONVERGENCE and BOOT_VERIFY
