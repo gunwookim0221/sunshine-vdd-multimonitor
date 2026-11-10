@@ -1,5 +1,5 @@
 # Sunshine/Moonlight remote-session start script
-# v4.2: diagnostics + stable monitor identifiers + fresh MultiMonitorTool topology verification
+# v4.3: stable identifiers + convergence-based MultiMonitorTool topology verification
 #
 # Key rule:
 # Never disable physical monitors by \\.\DISPLAYx one-by-one. Windows can renumber
@@ -16,6 +16,9 @@ $LogRoot          = "C:\SunshineLogs"
 $RunId            = (Get-Date).ToString("yyyyMMdd-HHmmss-fff") + "-on"
 $RunDir           = Join-Path $LogRoot $RunId
 $LogFile          = Join-Path $RunDir "operations.log"
+$VerificationTimeoutSeconds = 15
+$VerificationIntervalMs = 750
+$RequiredStableChecks = 3
 
 New-Item -ItemType Directory -Force -Path $RunDir | Out-Null
 
@@ -139,7 +142,7 @@ function Restore-LocalFailSafe {
 }
 
 try {
-    Write-Log "SESSION_START_V41 pid=$PID user=$env:USERNAME"
+    Write-Log "SESSION_START_V43 pid=$PID user=$env:USERNAME"
 
     if (-not (Test-Path $MultiMonitorTool)) {
         throw "MultiMonitorTool not found: $MultiMonitorTool"
@@ -214,31 +217,54 @@ try {
 
     Save-MonitorSnapshot "03-after-on"
 
-    # Strong post-condition: exactly one active monitor, and it must be the VDD.
-    $verifyRows = Get-MonitorRows
-    $activeRows = @($verifyRows | Where-Object { $_.Active -eq 'Yes' })
-    $activeVddRows = @($activeRows | Where-Object { Test-IsVddRow $_ })
+    # Topology changes can remain in flight after MultiMonitorTool returns.
+    # Require the intended VDD-only state to remain valid across consecutive
+    # fresh CSV reads before declaring success or attempting rollback.
+    $deadline = (Get-Date).AddSeconds($VerificationTimeoutSeconds)
+    $stableChecks = 0
+    $attempt = 0
+    $activeRows = @()
+    $activeVddRows = @()
 
-    Write-Log "VERIFY activeCount=$($activeRows.Count) activeVddCount=$($activeVddRows.Count)"
+    do {
+        Start-Sleep -Milliseconds $VerificationIntervalMs
+        $attempt++
 
-    if ($activeRows.Count -ne 1 -or $activeVddRows.Count -ne 1) {
+        $verifyRows = Get-MonitorRows
+        $activeRows = @($verifyRows | Where-Object { $_.Active -eq 'Yes' })
+        $activeVddRows = @($activeRows | Where-Object { Test-IsVddRow $_ })
+
+        $isValid = (
+            $activeRows.Count -eq 1 -and
+            $activeVddRows.Count -eq 1 -and
+            $activeVddRows[0].Primary -eq 'Yes'
+        )
+
+        if ($isValid) {
+            $stableChecks++
+        }
+        else {
+            $stableChecks = 0
+        }
+
         $activeSummary = @($activeRows | ForEach-Object {
             "name=$($_.Name),short=$($_.'Short Monitor ID'),monitorId=$($_.'Monitor ID'),primary=$($_.Primary)"
         }) -join ' ; '
-        Write-Log "VERIFY_FAILED active='$activeSummary'"
+
+        Write-Log "VERIFY_CONVERGENCE attempt=$attempt stable=$stableChecks/$RequiredStableChecks activeCount=$($activeRows.Count) activeVddCount=$($activeVddRows.Count) active='$activeSummary'"
+
+        if ($stableChecks -ge $RequiredStableChecks) { break }
+    } while ((Get-Date) -lt $deadline)
+
+    if ($stableChecks -lt $RequiredStableChecks) {
+        Write-Log "VERIFY_FAILED: VDD-only topology did not converge within $VerificationTimeoutSeconds seconds."
         Save-MonitorSnapshot "04-verification-failed"
         Restore-LocalFailSafe
-        throw "Exclusive VDD mode verification failed; local rollback was attempted."
+        throw "Exclusive VDD mode did not converge; local rollback was attempted."
     }
 
-    if ($activeVddRows[0].Primary -ne 'Yes') {
-        Write-Log "VERIFY_FAILED: VDD is the only active display but is not primary."
-        Save-MonitorSnapshot "04-verification-failed"
-        Restore-LocalFailSafe
-        throw "VDD primary verification failed; local rollback was attempted."
-    }
-
-    Write-Log "SESSION_START_SUCCESS targetName='$($activeVddRows[0].Name)' stableId='$vddId'"
+    Save-MonitorSnapshot "04-verified"
+    Write-Log "SESSION_START_SUCCESS targetName='$($activeVddRows[0].Name)' stableId='$vddId' stableChecks=$stableChecks"
     exit 0
 }
 catch {
