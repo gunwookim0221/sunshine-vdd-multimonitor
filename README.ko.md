@@ -56,10 +56,10 @@ Sunshine 가용성 보호
 ## 핵심 설계 원칙
 
 - `DISPLAY5`, `DISPLAY7`, `DISPLAY8` 같은 번호를 하드코딩하지 않습니다. Windows가 토폴로지를 바꾸는 중에도 DISPLAY 번호가 재배정될 수 있습니다.
-- v4.2 시작 스크립트는 Serial Number → full Monitor ID → Short Monitor ID 순으로 안정 식별자를 선택하고, rollback 검증도 fresh MultiMonitorTool topology를 사용합니다.
+- v4.3 시작 스크립트는 Serial Number → full Monitor ID → Short Monitor ID 순으로 안정 식별자를 선택하고, rollback 검증도 fresh MultiMonitorTool topology를 사용합니다.
 - 복수 물리 모니터는 토폴로지 변경 전에 식별자를 모두 수집한 뒤 **한 번의 MultiMonitorTool `/disable` 호출**로 처리합니다.
 - 전환 후 `Active=Yes`가 정확히 VDD 1개뿐이고 Primary인지 검증하며, 실패 시 `local.cfg` rollback을 시도합니다.
-- OFF/rollback 복구 검증은 WinForms `Screen.AllScreens.Count`가 아니라 **fresh MultiMonitorTool CSV에서 `Active=Yes`인 비-VDD 물리 모니터 수**를 사용합니다. 토폴로지 변경 직후 stale screen count로 인한 false negative를 피하기 위함입니다.
+- OFF/rollback/boot recovery 검증은 WinForms Screen count가 아니라 **fresh MultiMonitorTool CSV**를 사용합니다. ON은 VDD-only + Primary 상태가 연속 3회 확인될 때만 성공하고, boot recovery는 물리 모니터 2대 이상이 연속 2회 확인될 때만 VDD를 끕니다.
 - Sunshine의 `output_name` / 디스플레이 장치 ID는 **빈칸**으로 둡니다. 현재 주 모니터를 자동 캡처하게 합니다.
 - Sunshine의 디스플레이 장치 구성은 **사용 안 함**으로 둡니다. 모니터 토폴로지는 PowerShell 스크립트가 전담합니다.
 - 이 구성에서는 Sunshine의 `ensure_only_display`에 의존하지 않습니다.
@@ -69,7 +69,7 @@ Sunshine 가용성 보호
 
 ## 파일 구성
 
-- `scripts/sunshine-remote-on.ps1` — 원격 세션 시작 (v4.2)
+- `scripts/sunshine-remote-on.ps1` — 원격 세션 시작 (v4.3)
 - `scripts/sunshine-remote-off.ps1` — 원격 세션 종료/복구
 - `scripts/sunshine-boot-recovery.ps1` — 로그인 시 물리 모니터 자동 복구 안전장치
 - `scripts/register-boot-recovery.ps1` — 복구 작업 스케줄러 등록/제거
@@ -195,3 +195,16 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\coll
 ## 추가 RCA
 
 - [2026-11-08~09 Samsung G9 미표시 및 복구 검증 문제](docs/rca-2026-11-08-samsung-display-enumeration.ko.md) — Samsung이 현재 목록에서 사라진 관측과 v4.2 복구 검증 false-negative 수정 기록. 최초 원인은 아직 미확정입니다.
+
+
+## v4.3 토폴로지 수렴 검증
+
+2026-11-10 재발 로그에서 VDD 전환 직후 단일 검증 결과와 직후 snapshot이 서로 달랐습니다. Windows 디스플레이 토폴로지가 아직 변경 중인데 너무 빨리 실패 판정/rollback이 실행되는 race로 판단했습니다.
+
+- ON: fresh MultiMonitorTool CSV 기준으로 VDD 1개만 Active이고 Primary인 상태가 연속 3회 확인될 때만 성공
+- 최대 15초 동안 수렴을 기다린 뒤에만 rollback 판단
+- boot recovery: WinForms Screen count 제거
+- boot recovery: 비-VDD 물리 모니터 2대 이상이 연속 2회 확인된 뒤에만 VDD disable
+- 최소 관측 로그: VERIFY_CONVERGENCE, BOOT_VERIFY
+
+이 로그는 판정 근거만 기록하며 토폴로지나 권한을 변경하지 않습니다.
