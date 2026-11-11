@@ -73,6 +73,9 @@ Sunshine availability protection
 - `scripts/collect-display-diagnostics.ps1` — capture display diagnostics
 - `scripts/sunshine-watchdog.ps1` — Sunshine health check / auto restart
 - `scripts/register-sunshine-watchdog.ps1` — register crash-event + hourly watchdog tasks
+- `scripts/sunshine-local-takeover.ps1` — reclaim a VDD-only Moonlight session from learned local HID input
+- `scripts/register-local-takeover.ps1` — register/remove the interactive-user takeover watcher
+- `docs/local-takeover.md` — local takeover setup, logging, and recovery behavior
 - `docs/sunshine-watchdog.md` — watchdog setup and limitations
 - `docs/safety-and-diagnostics.md` — recovery and diagnostic logging
 - `docs/setup.md` — full setup guide
@@ -205,3 +208,12 @@ The 2026-11-10 recurrence showed that a single verification read immediately aft
 - bounded evidence logs: VERIFY_CONVERGENCE and BOOT_VERIFY
 
 These logs record evidence only and do not change topology or authority.
+
+
+## Local input takeover
+
+An optional `Sunshine Local Takeover` watcher can learn physical Raw Input device paths during normal local use. While VDD-only mode is active, only input from those learned devices can trigger takeover; unknown, injected, or virtual input is logged and ignored.
+
+On takeover it stops Sunshine to disconnect the stream, reuses the existing Undo/`sunshine-remote-off.ps1` recovery path, verifies at least two physical monitors, and starts Sunshine again. The existing OFF fail-safe remains authoritative.
+
+See [Local input takeover](docs/local-takeover.md) for installation and logs.
