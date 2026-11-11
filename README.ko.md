@@ -76,6 +76,9 @@ Sunshine 가용성 보호
 - `scripts/collect-display-diagnostics.ps1` — 문제 발생 시 즉시 상태 수집
 - `scripts/sunshine-watchdog.ps1` — Sunshine health check / 자동 재시작
 - `scripts/register-sunshine-watchdog.ps1` — crash 이벤트 + 1시간 보조 watchdog 등록/제거
+- `scripts/sunshine-local-takeover.ps1` — 학습된 실제 로컬 HID 입력으로 Moonlight 세션 takeover
+- `scripts/register-local-takeover.ps1` — interactive-user takeover watcher 등록/제거
+- `docs/local-takeover.ko.md` — 로컬 입력 자동 takeover 설치/로그/복구 설명
 - `docs/sunshine-watchdog.ko.md` — watchdog 설치/동작/제한 사항
 - `docs/safety-and-diagnostics.ko.md` — 자동 복구와 원인 추적 로그
 - `docs/setup.ko.md` — 전체 설치 및 설정
@@ -208,3 +211,14 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\coll
 - 최소 관측 로그: VERIFY_CONVERGENCE, BOOT_VERIFY
 
 이 로그는 판정 근거만 기록하며 토폴로지나 권한을 변경하지 않습니다.
+
+
+## 로컬 입력 자동 Takeover
+
+선택 기능으로 `Sunshine Local Takeover` watcher를 설치할 수 있습니다.
+
+정상 로컬 모드에서 실제 키보드/마우스 Raw Input device path를 자동 학습하고, VDD-only Moonlight 상태에서 **학습된 물리 장치**의 키 입력·마우스 클릭·의도적인 이동만 takeover 신호로 사용합니다. 미학습/주입/가상 입력은 로그만 남기고 무시합니다.
+
+Takeover가 발생하면 Sunshine 서비스를 stop해 원격 연결을 끊고, 기존 Undo 또는 `sunshine-remote-off.ps1`로 물리 모니터 2대 복구를 검증한 뒤 Sunshine을 다시 시작합니다. 기존 OFF fail-safe를 재사용하며 VDD를 먼저 강제로 끄지 않습니다.
+
+설치와 로그 설명은 [로컬 입력 자동 Takeover](docs/local-takeover.ko.md)를 참고하세요.
