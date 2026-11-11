@@ -143,7 +143,9 @@ function Load-KnownDevices {
         }
     }
 
-    return $set
+    # PowerShell enumerates IEnumerable return values. An empty HashSet would otherwise
+    # produce no pipeline output and become $null on first-run startup.
+    return ,$set
 }
 
 function Invoke-LocalTakeover {
@@ -483,6 +485,11 @@ try {
 }
 
 $knownDevices = Load-KnownDevices
+if ($null -eq $knownDevices) {
+    # Defensive fallback for first-run/empty-state correctness.
+    $knownDevices = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+    Write-Log "KNOWN_DEVICE_INIT_FALLBACK reason='loader-returned-null'"
+}
 $unknownDeviceLastLog = @{}
 $movementState = @{}
 $watcher = New-Object SunshineLocalTakeover.RawInputWatcher
@@ -570,7 +577,7 @@ try {
                         try {
                             Invoke-LocalTakeover -Reason $reason -Device $device
                         } catch {
-                            Write-Log "TAKEOVER_EXCEPTION error='$($_.Exception.Message)'"
+                            Write-Log "TAKEOVER_EXCEPTION error='$($_.Exception.Message)' line='$($_.InvocationInfo.ScriptLineNumber)' stack='$($_.ScriptStackTrace)'"
                         } finally {
                             $takeoverInProgress = $false
                             $topology = $null
@@ -587,7 +594,7 @@ try {
         Start-Sleep -Milliseconds $PollIntervalMs
     }
 } catch {
-    Write-Log "WATCHER_FATAL error='$($_.Exception.Message)'"
+    Write-Log "WATCHER_FATAL error='$($_.Exception.Message)' line='$($_.InvocationInfo.ScriptLineNumber)' stack='$($_.ScriptStackTrace)'"
     exit 1
 } finally {
     try { $watcher.Stop() } catch {}
