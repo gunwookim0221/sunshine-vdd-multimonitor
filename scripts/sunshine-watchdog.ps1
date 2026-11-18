@@ -3,6 +3,8 @@
 # - Keep Sunshine available without polling every few minutes.
 # - Run on Service Control Manager crash events and as a light hourly safety check.
 # - Restart Sunshine only when its Windows service/process/control ports are unhealthy.
+# - Record diagnostic-only network evidence (listeners, profiles, IPv4, Tailscale adapter).
+# - Network diagnostics do NOT change restart authority.
 # - Do NOT change monitor topology or VDD state.
 #
 # Run elevated (the registration script installs scheduled tasks as SYSTEM).
@@ -60,6 +62,81 @@ function Test-TcpPort {
     }
 }
 
+function Write-NetworkDiagnostics {
+    param(
+        [int]$HttpPort,
+        [int]$WebUiPort
+    )
+
+    # Diagnostic-only evidence. These checks never change restart authority.
+    try {
+        $diagPorts = @($HttpPort - 5, $HttpPort, $WebUiPort, $HttpPort + 21) |
+            Sort-Object -Unique
+
+        $listeners = @(Get-NetTCPConnection -State Listen -ErrorAction Stop |
+            Where-Object { $_.LocalPort -in $diagPorts } |
+            Sort-Object LocalPort, LocalAddress |
+            ForEach-Object {
+                "addr=$($_.LocalAddress),port=$($_.LocalPort),pid=$($_.OwningProcess)"
+            })
+
+        Write-Log ("NET_DIAG_LISTENERS ports='{0}' listeners='{1}'" -f
+            ($diagPorts -join ','), ($listeners -join ' ; '))
+    }
+    catch {
+        Write-Log "NET_DIAG_LISTENERS_ERROR error='$($_.Exception.Message)'"
+    }
+
+    try {
+        $profiles = @(Get-NetConnectionProfile -ErrorAction Stop |
+            ForEach-Object {
+                "if=$($_.InterfaceAlias),name=$($_.Name),category=$($_.NetworkCategory),ipv4=$($_.IPv4Connectivity)"
+            })
+
+        Write-Log ("NET_DIAG_PROFILES profiles='{0}'" -f ($profiles -join ' ; '))
+    }
+    catch {
+        Write-Log "NET_DIAG_PROFILES_ERROR error='$($_.Exception.Message)'"
+    }
+
+    try {
+        $ips = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction Stop |
+            Where-Object {
+                $_.IPAddress -notlike '127.*' -and
+                $_.IPAddress -notlike '169.254.*'
+            } |
+            Sort-Object InterfaceAlias, IPAddress |
+            ForEach-Object {
+                "if=$($_.InterfaceAlias),ip=$($_.IPAddress)/$($_.PrefixLength)"
+            })
+
+        Write-Log ("NET_DIAG_IPV4 addresses='{0}'" -f ($ips -join ' ; '))
+    }
+    catch {
+        Write-Log "NET_DIAG_IPV4_ERROR error='$($_.Exception.Message)'"
+    }
+
+    try {
+        $tailscale = @(Get-NetAdapter -ErrorAction Stop |
+            Where-Object {
+                $_.Name -match 'Tailscale' -or
+                $_.InterfaceDescription -match 'Tailscale'
+            } |
+            ForEach-Object {
+                "name=$($_.Name),status=$($_.Status),linkMbps=$([math]::Round($_.LinkSpeed/1MB,2))"
+            })
+
+        if ($tailscale.Count -eq 0) {
+            Write-Log "NET_DIAG_TAILSCALE adapters='none'"
+        } else {
+            Write-Log ("NET_DIAG_TAILSCALE adapters='{0}'" -f ($tailscale -join ' ; '))
+        }
+    }
+    catch {
+        Write-Log "NET_DIAG_TAILSCALE_ERROR error='$($_.Exception.Message)'"
+    }
+}
+
 function Test-RestartCooldown {
     if (-not (Test-Path $LastRestartFile)) { return $false }
 
@@ -106,6 +183,7 @@ try {
     $webOk = Test-TcpPort -Port $WebPort
 
     Write-Log "CHECK service='$serviceName' status='$($svc.Status)' process=$([bool]$proc) tcp$BasePort=$httpOk tcp$WebPort=$webOk"
+    Write-NetworkDiagnostics -HttpPort $BasePort -WebUiPort $WebPort
 
     if ($svc.Status -eq 'Running' -and $proc -and $httpOk -and $webOk) {
         Write-Log "HEALTHY no action required."
