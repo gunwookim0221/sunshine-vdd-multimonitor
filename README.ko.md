@@ -64,7 +64,7 @@ Sunshine 가용성 보호
 - Sunshine의 디스플레이 장치 구성은 **사용 안 함**으로 둡니다. 모니터 토폴로지는 PowerShell 스크립트가 전담합니다.
 - 이 구성에서는 Sunshine의 `ensure_only_display`에 의존하지 않습니다.
 - 종료 시 반드시 **`local.cfg 복원 → 물리 모니터 복귀 확인 → VDD OFF`** 순서를 지킵니다.
-- Sunshine watchdog은 **모니터 토폴로지/VDD를 절대 변경하지 않고** Sunshine 서비스/프로세스/로컬 포트만 감시합니다.
+- Sunshine watchdog은 **모니터 토폴로지/VDD를 절대 변경하지 않고**, 자동 복구 판정은 Sunshine 서비스/프로세스/localhost 포트에만 둡니다. 외부 접근 문제 추적을 위해 LISTEN 주소/PID, 네트워크 프로필, IPv4, Tailscale 상태는 diagnostic-only 로그로 남깁니다.
 - watchdog은 반복 재시작 방지를 위해 cooldown을 사용하며, 서비스 crash 이벤트와 1시간 보조 점검을 함께 사용합니다.
 
 ## 파일 구성
@@ -168,7 +168,9 @@ watchdog은 다음 방식으로 동작합니다.
 
 - Service Control Manager의 7031/7034 비정상 종료 이벤트 발생 시 즉시 health check
 - 이벤트가 없거나 hang 형태로 남는 경우를 위해 1시간마다 보조 health check
-- Sunshine 서비스/프로세스/로컬 포트가 비정상일 때만 Sunshine 서비스 재시작
+- Sunshine 서비스/프로세스/localhost 포트가 비정상일 때만 Sunshine 서비스 재시작
+- LISTEN 주소/PID, 네트워크 프로필, IPv4, Tailscale 어댑터 상태는 진단 로그만 기록
+- 네트워크 진단 결과만으로는 Sunshine을 재시작하지 않음
 - VDD나 물리 모니터 상태는 변경하지 않음
 - 짧은 시간에 반복 재시작되는 것을 막기 위한 cooldown 적용
 
