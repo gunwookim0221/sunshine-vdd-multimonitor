@@ -8,12 +8,19 @@ Moonlight에서 PC가 회색/오프라인처럼 보이지만 Windows PC 자체�
 
 watchdog은 모니터 토폴로지나 VDD를 건드리지 않습니다. Sunshine 상태만 확인합니다.
 
-확인 항목:
+자동 복구 판정 항목:
 
 - Sunshine Windows 서비스가 존재하고 `Running`인지
 - `sunshine.exe` 프로세스가 존재하는지
-- 기본 Sunshine HTTP 포트 `47989/TCP`가 로컬에서 열려 있는지
-- 기본 Web UI 포트 `47990/TCP`가 로컬에서 열려 있는지
+- 기본 Sunshine HTTP 포트 `47989/TCP`가 localhost에서 열려 있는지
+- 기본 Web UI 포트 `47990/TCP`가 localhost에서 열려 있는지
+
+추가 진단 로그(판정에는 사용하지 않음):
+
+- Sunshine 관련 포트의 실제 LISTEN 주소와 owning PID
+- Windows 네트워크 프로필/카테고리와 IPv4 연결 상태
+- loopback/APIPA를 제외한 IPv4 주소
+- Tailscale 어댑터 존재 여부와 상태
 
 Sunshine의 기본 Web UI는 `https://localhost:47990`이며 기본 포트 패밀리는 HTTP 47989 / Web 47990입니다.
 
@@ -42,6 +49,8 @@ sunshine.exe 존재
 ```
 
 모두 정상화되면 `RECOVERY_SUCCESS`를 기록합니다.
+
+네트워크 진단 값은 `NET_DIAG_*` 로그로만 남으며 **Sunshine restart 여부를 바꾸지 않습니다.** 예를 들어 Tailscale이 내려가거나 이더넷이 Public이어도 서비스/프로세스/localhost 포트가 정상이면 watchdog은 Sunshine을 재시작하지 않습니다.
 
 5분 restart cooldown이 있어 반복 crash 시 무한 재시작 루프를 피합니다.
 
@@ -81,7 +90,9 @@ C:\SunshineLogs\watchdog\sunshine-watchdog.log
 C:\SunshineLogs\watchdog\last-restart.txt
 ```
 
-Moonlight가 회색으로 보였던 시점에 `RECOVERY_SUCCESS`, `RECOVERY_FAILED`, `WATCHDOG_ERROR`가 있었는지 확인하면 Sunshine 자체 문제인지 추적하는 데 도움이 됩니다.
+Moonlight가 회색으로 보였던 시점에는 `CHECK`, `NET_DIAG_LISTENERS`, `NET_DIAG_PROFILES`, `NET_DIAG_IPV4`, `NET_DIAG_TAILSCALE`를 함께 확인합니다. 서비스/localhost는 정상인데 Moonlight만 offline이었다면 PC 외부 접근 경로의 상태를 좁히는 데 도움이 됩니다.
+
+`RECOVERY_SUCCESS`, `RECOVERY_FAILED`, `WATCHDOG_ERROR`도 같이 확인하면 Sunshine 자체 장애 여부를 분리할 수 있습니다.
 
 ## 제거
 
@@ -91,7 +102,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\regi
 
 ## 제한 사항
 
-- 이 watchdog은 Sunshine 서비스/프로세스/로컬 포트 상태를 감시합니다.
-- Tailscale, Wi-Fi, 라우팅, 방화벽 등 네트워크 경로 자체가 끊긴 경우는 Sunshine 재시작으로 해결되지 않을 수 있습니다.
+- 자동 복구 authority는 Sunshine 서비스/프로세스/localhost 포트 상태에만 있습니다.
+- Tailscale, Wi-Fi, 라우팅, 방화벽 등 네트워크 경로 자체가 끊긴 경우는 진단 로그에 증거를 남길 수 있지만 Sunshine을 자동 재시작하지 않습니다.
+- LISTEN 주소/네트워크 프로필/IPv4/Tailscale 상태는 diagnostic-only이며 동작이나 권한을 변경하지 않습니다.
 - Sunshine 포트를 기본값에서 변경했다면 `sunshine-watchdog.ps1 -BasePort <포트>`로 실행하도록 예약 작업도 맞춰야 합니다.
 - VDD/물리 모니터 복구는 기존 `sunshine-boot-recovery.ps1` 및 remote on/off 스크립트의 역할입니다.
