@@ -70,7 +70,7 @@ function Write-NetworkDiagnostics {
 
     # Diagnostic-only evidence. These checks never change restart authority.
     try {
-        $diagPorts = @($HttpPort - 5, $HttpPort, $WebUiPort, $HttpPort + 21) |
+        $diagPorts = @(($HttpPort - 5), $HttpPort, $WebUiPort, ($HttpPort + 21)) |
             Sort-Object -Unique
 
         $listeners = @(Get-NetTCPConnection -State Listen -ErrorAction Stop |
@@ -123,7 +123,7 @@ function Write-NetworkDiagnostics {
                 $_.InterfaceDescription -match 'Tailscale'
             } |
             ForEach-Object {
-                "name=$($_.Name),status=$($_.Status),linkMbps=$([math]::Round($_.LinkSpeed/1MB,2))"
+                "name=$($_.Name),status=$($_.Status),linkSpeed=$($_.LinkSpeed)"
             })
 
         if ($tailscale.Count -eq 0) {
