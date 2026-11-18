@@ -61,7 +61,7 @@ Sunshine availability protection
 - Leave Sunshine `output_name` / Display Device ID blank and disable Sunshine Display Device Configuration.
 - Do not rely on Sunshine `ensure_only_display` for this workflow.
 - Always restore `local.cfg` before disabling VDD.
-- The Sunshine watchdog never changes monitor topology or VDD state; it only checks Sunshine service/process/local-port health.
+- The Sunshine watchdog never changes monitor topology or VDD state. Restart authority remains limited to Sunshine service/process/localhost-port health, while LISTEN address/PID, network profile, IPv4, and Tailscale status are logged as diagnostic-only evidence.
 - The watchdog uses a restart cooldown and combines crash-event triggers with a lightweight hourly fallback check.
 
 ## Files
@@ -165,7 +165,9 @@ The watchdog behavior is:
 
 - reacts immediately to Service Control Manager 7031/7034 unexpected-termination events
 - performs one lightweight hourly fallback check for hang/offline cases that produce no crash event
-- restarts Sunshine only when its service/process/local ports are unhealthy
+- restarts Sunshine only when its service/process/localhost ports are unhealthy
+- logs LISTEN address/PID, network profiles, IPv4, and Tailscale adapter state for diagnosis
+- never restarts Sunshine solely because network diagnostics look abnormal
 - never changes VDD or physical-monitor topology
 - uses a restart cooldown to avoid restart loops
 
