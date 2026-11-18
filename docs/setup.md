@@ -155,7 +155,7 @@ Behavior:
 
 - reacts immediately to Service Control Manager 7031/7034 events
 - performs one lightweight hourly fallback health check
-- checks Sunshine service, `sunshine.exe`, and default TCP ports 47989/47990
+- checks Sunshine service, `sunshine.exe`, and default TCP ports 47984/47989/47990
 - restarts only Sunshine when unhealthy
 - never changes VDD or monitor topology
 - uses a five-minute restart cooldown to avoid restart loops

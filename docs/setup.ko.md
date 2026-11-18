@@ -154,7 +154,7 @@ Sunshine Watchdog - Hourly
 
 - Service Control Manager 7031/7034 이벤트 발생 시 즉시 Sunshine 상태 확인
 - 1시간마다 한 번 보조 health check
-- Sunshine 서비스/`sunshine.exe`/기본 47989·47990 TCP 포트를 확인
+- Sunshine 서비스/`sunshine.exe`/기본 47984·47989·47990 TCP 포트를 확인
 - 이상 시 Sunshine 서비스만 재시작
 - VDD 및 모니터 토폴로지는 건드리지 않음
 - 5분 restart cooldown으로 반복 crash 시 재시작 루프 방지

@@ -154,7 +154,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\suns
 정상 예시:
 
 ```text
-CHECK service='SunshineService' status='Running' process=True tcp47989=True tcp47990=True
+CHECK service='SunshineService' status='Running' process=True tcp47984=True tcp47989=True tcp47990=True
 HEALTHY no action required.
 ```
 
@@ -168,7 +168,8 @@ watchdog은 다음 방식으로 동작합니다.
 
 - Service Control Manager의 7031/7034 비정상 종료 이벤트 발생 시 즉시 health check
 - 이벤트가 없거나 hang 형태로 남는 경우를 위해 1시간마다 보조 health check
-- Sunshine 서비스/프로세스/localhost 포트가 비정상일 때만 Sunshine 서비스 재시작
+- localhost의 47984, 47989, 47990에 실제 TCP 연결 확인
+- 47984만 실패하면 재검사하고 Sunshine이 유휴 상태일 때 서비스 재시작
 - LISTEN 주소/PID, 네트워크 프로필, IPv4, Tailscale 어댑터 상태는 진단 로그만 기록
 - 네트워크 진단 결과만으로는 Sunshine을 재시작하지 않음
 - VDD나 물리 모니터 상태는 변경하지 않음

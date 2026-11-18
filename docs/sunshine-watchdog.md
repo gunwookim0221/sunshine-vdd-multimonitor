@@ -12,6 +12,7 @@ Recovery-authority checks:
 
 - Sunshine Windows service exists and is `Running`
 - `sunshine.exe` process exists
+- default GameStream HTTPS port `47984/TCP` accepts a new localhost TCP connection
 - default Sunshine HTTP port `47989/TCP` is reachable on localhost
 - default Web UI port `47990/TCP` is reachable on localhost
 
@@ -22,7 +23,7 @@ Additional diagnostic-only evidence:
 - non-loopback, non-APIPA IPv4 addresses
 - Tailscale adapter presence and status
 
-Sunshine's default Web UI is `https://localhost:47990`, with default HTTP/Web ports 47989/47990.
+Sunshine's default Web UI is `https://localhost:47990`, and its GameStream HTTPS, HTTP, and Web UI default ports are 47984, 47989, and 47990.
 
 ## Trigger strategy
 
@@ -39,13 +40,16 @@ Sunshine's default Web UI is `https://localhost:47990`, with default HTTP/Web po
 
 ## Recovery
 
+If only GameStream HTTPS fails, the watchdog logs the Sunshine PID and `CLOSE_WAIT` count and retries TCP after two seconds. If both attempts fail, it uses the existing service restart path when `/serverinfo` confirms Sunshine is idle. An active session or an unconfirmed idle state is logged as `GAMESTREAM_HTTPS_RECOVERY_DEFERRED`.
+
 When Sunshine is unhealthy, the watchdog restarts its Windows service and waits up to 25 seconds for all of these conditions:
 
 ```text
 service Running
 sunshine.exe present
-47989/TCP listening
-47990/TCP listening
+47984/TCP connection succeeds
+47989/TCP connection succeeds
+47990/TCP connection succeeds
 ```
 
 If they recover, `RECOVERY_SUCCESS` is logged.
@@ -54,9 +58,17 @@ Network evidence is written as `NET_DIAG_*` lines and **does not change restart 
 
 A five-minute restart cooldown prevents a crash loop from causing repeated restarts.
 
+## November 18, 2026 incident
+
+Moonlight showed the paired host as offline while the Sunshine Web UI and HTTP `/serverinfo` remained reachable. `47984/TCP` appeared as `LISTENING`, but Windows refused new connections from the host itself. The Sunshine process had 185 `CLOSE_WAIT` sockets on that port. The previous watchdog checked only 47989 and 47990 and reported `HEALTHY`.
+
+Restarting the Sunshine service restored connections to 47984, cleared the `CLOSE_WAIT` sockets, and restored Moonlight access using the existing pairing. The trigger for the socket accumulation remains unknown.
+
 ## Install
 
-Copy:
+For existing installations, replace `C:\SunshineScripts\sunshine-watchdog.ps1` in place. The scheduled tasks already use that path.
+
+For a new installation, copy:
 
 ```text
 C:\SunshineScripts\sunshine-watchdog.ps1

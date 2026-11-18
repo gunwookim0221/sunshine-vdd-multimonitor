@@ -151,7 +151,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\suns
 Healthy example:
 
 ```text
-CHECK service='SunshineService' status='Running' process=True tcp47989=True tcp47990=True
+CHECK service='SunshineService' status='Running' process=True tcp47984=True tcp47989=True tcp47990=True
 HEALTHY no action required.
 ```
 
@@ -165,7 +165,8 @@ The watchdog behavior is:
 
 - reacts immediately to Service Control Manager 7031/7034 unexpected-termination events
 - performs one lightweight hourly fallback check for hang/offline cases that produce no crash event
-- restarts Sunshine only when its service/process/localhost ports are unhealthy
+- checks actual localhost TCP connections to 47984, 47989, and 47990
+- retries an isolated 47984 failure and restarts the service only if Sunshine reports it is idle
 - logs LISTEN address/PID, network profiles, IPv4, and Tailscale adapter state for diagnosis
 - never restarts Sunshine solely because network diagnostics look abnormal
 - never changes VDD or physical-monitor topology

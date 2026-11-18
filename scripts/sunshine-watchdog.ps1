@@ -19,6 +19,7 @@ $ErrorActionPreference = "Stop"
 $LogRoot = "C:\SunshineLogs\watchdog"
 $LogFile = Join-Path $LogRoot "sunshine-watchdog.log"
 $LastRestartFile = Join-Path $LogRoot "last-restart.txt"
+$GameStreamHttpsPort = $BasePort - 5
 $WebPort = $BasePort + 1
 
 New-Item -ItemType Directory -Force -Path $LogRoot | Out-Null
@@ -59,6 +60,36 @@ function Test-TcpPort {
     }
     finally {
         if ($client) { $client.Close() }
+    }
+}
+
+function Write-GameStreamHttpsDiagnostics {
+    param($SunshineProcess)
+
+    try {
+        $closeWait = @(Get-NetTCPConnection -ErrorAction Stop |
+            Where-Object {
+                $_.LocalPort -eq $GameStreamHttpsPort -and
+                $_.State -eq 'CloseWait' -and
+                $_.OwningProcess -eq $SunshineProcess.Id
+            }).Count
+        Write-Log "GAMESTREAM_HTTPS_DIAG port=$GameStreamHttpsPort sunshinePid='$($SunshineProcess.Id)' closeWait=$closeWait"
+    }
+    catch {
+        Write-Log "GAMESTREAM_HTTPS_DIAG_ERROR port=$GameStreamHttpsPort sunshinePid='$($SunshineProcess.Id)' error='$($_.Exception.Message)'"
+    }
+}
+
+function Test-SunshineIdle {
+    try {
+        $info = Invoke-RestMethod -Uri "http://127.0.0.1:${BasePort}/serverinfo?uniqueid=0123456789ABCDEF" -TimeoutSec 3
+        return ($info.root.status_code -eq '200' -and
+            $info.root.currentgame -eq '0' -and
+            $info.root.state -eq 'SUNSHINE_SERVER_FREE')
+    }
+    catch {
+        Write-Log "GAMESTREAM_IDLE_CHECK_FAILED error='$($_.Exception.Message)'"
+        return $false
     }
 }
 
@@ -158,10 +189,12 @@ function Wait-ForSunshineHealthy {
 
         $svc = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
         $proc = Get-Process sunshine -ErrorAction SilentlyContinue | Select-Object -First 1
+        $gameStreamHttpsOk = Test-TcpPort -Port $GameStreamHttpsPort
         $httpOk = Test-TcpPort -Port $BasePort
         $webOk = Test-TcpPort -Port $WebPort
 
-        if ($svc.Status -eq 'Running' -and $proc -and $httpOk -and $webOk) {
+        if ($svc.Status -eq 'Running' -and $proc -and $gameStreamHttpsOk -and $httpOk -and $webOk) {
+            Write-Log "RECOVERY_SUCCESS status='$($svc.Status)' sunshinePid=$($proc.Id) tcp$GameStreamHttpsPort=$gameStreamHttpsOk tcp$BasePort=$httpOk tcp$WebPort=$webOk"
             return $true
         }
     } while ((Get-Date) -lt $deadline)
@@ -179,19 +212,34 @@ try {
     $serviceName = [string]$svcInfo.Name
     $svc = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
     $proc = Get-Process sunshine -ErrorAction SilentlyContinue | Select-Object -First 1
+    $gameStreamHttpsOk = Test-TcpPort -Port $GameStreamHttpsPort
     $httpOk = Test-TcpPort -Port $BasePort
     $webOk = Test-TcpPort -Port $WebPort
 
-    Write-Log "CHECK service='$serviceName' status='$($svc.Status)' process=$([bool]$proc) tcp$BasePort=$httpOk tcp$WebPort=$webOk"
+    Write-Log "CHECK service='$serviceName' status='$($svc.Status)' process=$([bool]$proc) tcp$GameStreamHttpsPort=$gameStreamHttpsOk tcp$BasePort=$httpOk tcp$WebPort=$webOk"
     Write-NetworkDiagnostics -HttpPort $BasePort -WebUiPort $WebPort
 
-    if ($svc.Status -eq 'Running' -and $proc -and $httpOk -and $webOk) {
+    $otherChecksHealthy = $svc.Status -eq 'Running' -and $proc -and $httpOk -and $webOk
+    if ($otherChecksHealthy -and -not $gameStreamHttpsOk) {
+        Write-GameStreamHttpsDiagnostics -SunshineProcess $proc
+        Start-Sleep -Seconds 2
+        $gameStreamHttpsOk = Test-TcpPort -Port $GameStreamHttpsPort
+        Write-Log "GAMESTREAM_HTTPS_RECHECK tcp$GameStreamHttpsPort=$gameStreamHttpsOk"
+    }
+
+    if ($otherChecksHealthy -and $gameStreamHttpsOk) {
         Write-Log "HEALTHY no action required."
         exit 0
     }
 
     if (Test-RestartCooldown) {
         Write-Log "UNHEALTHY but restart cooldown (${CooldownMinutes}m) is active; skipping to avoid a restart loop."
+        exit 3
+    }
+
+    # An established stream may still be usable with GameStream HTTPS down.
+    if ($otherChecksHealthy -and -not (Test-SunshineIdle)) {
+        Write-Log "GAMESTREAM_HTTPS_RECOVERY_DEFERRED Sunshine has an active session or idle state could not be confirmed."
         exit 3
     }
 
@@ -209,15 +257,15 @@ try {
     }
 
     if (Wait-ForSunshineHealthy -ServiceName $serviceName) {
-        Write-Log "RECOVERY_SUCCESS service/process/control ports are healthy."
         exit 0
     }
 
     $finalSvc = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
     $finalProc = Get-Process sunshine -ErrorAction SilentlyContinue | Select-Object -First 1
+    $finalGameStreamHttps = Test-TcpPort -Port $GameStreamHttpsPort
     $finalHttp = Test-TcpPort -Port $BasePort
     $finalWeb = Test-TcpPort -Port $WebPort
-    Write-Log "RECOVERY_FAILED status='$($finalSvc.Status)' process=$([bool]$finalProc) tcp$BasePort=$finalHttp tcp$WebPort=$finalWeb"
+    Write-Log "RECOVERY_FAILED status='$($finalSvc.Status)' process=$([bool]$finalProc) tcp$GameStreamHttpsPort=$finalGameStreamHttps tcp$BasePort=$finalHttp tcp$WebPort=$finalWeb"
     exit 1
 }
 catch {
