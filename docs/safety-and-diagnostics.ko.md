@@ -11,6 +11,19 @@
 - `operations.log`: 단계별 실행 결과와 성공/실패
 - `*.csv`: MultiMonitorTool 토폴로지 스냅샷
 - `*-pnp.txt`: Display 클래스 PnP 상태
+- OFF 복구 경계 스냅샷의 `*-monitor-pnp*.txt`: 전체 Monitor 클래스 장치와 현재 `-PresentOnly` 장치
+- OFF 복구 경계 스냅샷의 `*-present-pnp.txt`: 현재 열거된 Display 어댑터(NVIDIA GPU 및 VDD 포함)
+- OFF 복구 경계 스냅샷의 `*-evidence.json`: MTT 행, PnP 요약, 각 조회의 UTC 시각과 CSV 현재성 메타데이터
+
+OFF 스크립트는 각 복구 검증 때마다 `TOPOLOGY_SAMPLE` 행을 남깁니다. 이 행에는 MTT CSV 읽기 시작/종료 시각, CSV 수정 시각과 나이, 실행 코드, 각 디스플레이의 목록 포함 여부와 `Active` 값이 기록됩니다. PnP 전체/현재 목록은 `01-before-off`, `02-after-local-restore`, `03-final`, `99-failure` 경계 스냅샷에 저장됩니다.
+
+해석할 때는 다음을 구분하세요.
+
+- MTT CSV에 Samsung 행이 없으면 그 시점 MTT 현재 목록에 Samsung이 없었다는 뜻입니다. PnP 장치 자체가 없는지까지 말해 주지는 않습니다.
+- `*-monitor-pnp-present.txt` 또는 evidence의 `samsungPresentOnlyCount`는 `Get-PnpDevice -Class Monitor -PresentOnly` 결과입니다. 0이면 그 조회 시점에 해당하는 Samsung Monitor PnP 장치가 현재 열거되지 않았다는 뜻입니다.
+- 전체 Monitor 목록에만 Samsung이 있고 `PresentOnly`에는 없으면 Windows에 남은 비현재 장치 항목과 현재 열거 상태를 구분할 수 있습니다.
+- Display 클래스는 GPU/디스플레이 어댑터와 VDD 상태를 보여 줍니다. 이것만으로 모니터 PnP 존재나 활성 토폴로지를 판정할 수는 없습니다.
+- 각 조회는 순차 실행됩니다. UTC 시각과 MTT CSV 나이는 수집 시점의 간격과 오래된 CSV 가능성을 확인하는 자료이지, Windows의 모든 상태를 원자적으로 동시에 읽은 스냅샷은 아닙니다.
 
 핵심 판별 기준:
 

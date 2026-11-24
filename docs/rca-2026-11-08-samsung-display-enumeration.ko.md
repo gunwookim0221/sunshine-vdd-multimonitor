@@ -172,3 +172,24 @@ v4.3 적용 후 실제 Moonlight ON/OFF 왕복에서 다음이 확인됐다.
 - OFF 물리 모니터 복구: PASS
 - Samsung 재열거: PASS
 - 새 DP 포트 효과: 정황상 유의미, 원인 확정 아님
+
+
+## 2026-11-24 재발 — OFF 시작부터 Samsung이 현재 MTT 목록에 없음
+
+이번 복구 ZIP의 `01-before-off.csv`, `02-after-local-restore.csv`, `99-failure.csv`, `verify-current.csv`는 같은 상태를 보였다.
+
+- 물리 모니터 행은 MSI MP242 하나뿐이고 `Active=Yes`였다.
+- VDD는 `Active=No`였다.
+- Samsung LC49G95T/SAM7053 행은 어느 CSV에도 없었다.
+- `local.cfg` 로드 뒤 약 20초 동안 19회 확인했지만 매번 활성 물리 모니터는 MSI 한 대뿐이었다.
+- takeover 로그에는 Sunshine 중지 시각이 22:36:14, 첫 복구 확인이 22:36:15로 기록됐다. OFF 재시도는 `exitCode=1`로 끝났고, fail-safe가 VDD를 그대로 두었다.
+
+따라서 이번 로그가 뒷받침하는 판정은 **복구가 시작될 때 이미 Samsung이 Windows의 현재 MTT 디스플레이 목록에 없었다**는 것이다. CSV에 Samsung 행이 없으므로 “비활성 행으로 열거됐지만 활성화에 실패했다”거나 “Samsung 대상 활성화 명령이 실패했다”고 결론 내릴 근거는 없다.
+
+기존 PnP 텍스트는 `Class=Display` 장치인 NVIDIA GPU와 VDD를 기록했지만 `Class=Monitor` 목록은 저장하지 않았다. 따라서 이 ZIP만으로 Samsung Monitor PnP 장치가 현재 존재했는지 또는 사라졌는지는 판별할 수 없다. 같은 날 앞선 takeover 기록에서 MSI와 Samsung이 함께 보였다는 점은 증상이 간헐적임을 보여 주지만, 원인을 특정하지는 않는다.
+
+### 다음 재발을 위한 진단 보강
+
+OFF 복구는 이제 각 MTT 검증 읽기에 `TOPOLOGY_SAMPLE`을 남기며, 시작/종료 UTC 시각, CSV 수정 시각과 나이, MTT 종료 코드, 각 행의 `Active`/VDD 구분을 기록한다. OFF 경계 스냅샷에는 전체 Monitor PnP 목록과 `-PresentOnly` 목록, 현재 Display 어댑터 목록, 요약 및 조회 시간을 담은 `*-evidence.json`이 추가된다. 복구 판정 조건, `local.cfg` 복원 순서, fail-safe 동작은 바꾸지 않았다.
+
+이 보강은 **다음 수집부터** 적용된다. 2026-11-24 ZIP에는 Monitor 클래스 PnP 자료가 없으므로 새 로깅으로 그날의 장치 존재 여부나 근본 원인을 소급 판정할 수 없다. PnP/어댑터/MTT 조회는 순차적으로 이뤄지므로 시각 메타데이터는 상태 변화의 시간 범위를 좁히는 자료이며, 완전히 동시인 단일 스냅샷은 아니다. MTT 행 누락은 MTT 현재 목록의 부재만 증명하고 PnP 부재를 증명하지 않는다.

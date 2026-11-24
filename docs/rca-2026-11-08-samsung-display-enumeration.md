@@ -168,3 +168,24 @@ Current status:
 - OFF physical-monitor recovery: PASS
 - Samsung re-enumeration: PASS
 - different DP port: meaningful correlation, not a confirmed root cause
+
+
+## 2026-11-24 recurrence — Samsung absent from the current MTT list at OFF start
+
+The recovery ZIP's `01-before-off.csv`, `02-after-local-restore.csv`, `99-failure.csv`, and `verify-current.csv` showed the same state:
+
+- MSI MP242 was the only physical-monitor row and had `Active=Yes`.
+- VDD had `Active=No`.
+- No Samsung LC49G95T/SAM7053 row appeared in any CSV.
+- Across about 20 seconds after loading `local.cfg`, all 19 checks still showed only the MSI as an active physical monitor.
+- The takeover log recorded Sunshine stopping at 22:36:14 and the first recovery check at 22:36:15. The OFF retry ended with `exitCode=1`; fail-safe left VDD unchanged.
+
+The supported finding is that **Samsung was already absent from Windows' current MTT display list when recovery began**. With no Samsung row in the CSV, the logs do not support a claim that Samsung was enumerated as inactive and failed activation, or that an activation command targeting Samsung failed.
+
+The saved PnP text covered `Class=Display` devices (the NVIDIA GPU and VDD) but did not include `Class=Monitor`. This ZIP therefore cannot establish whether Samsung's Monitor PnP device was currently present or absent. Earlier takeover logs from the same day showed both MSI and Samsung, which supports an intermittent symptom but does not identify its cause.
+
+### Diagnostic additions for the next recurrence
+
+OFF recovery now records a `TOPOLOGY_SAMPLE` for every MTT verification read, including start/end UTC, CSV write time and age, MTT exit code, and every row's `Active`/VDD classification. OFF boundary snapshots also add the full and `-PresentOnly` Monitor PnP lists, currently present Display adapters, and a `*-evidence.json` summary with query times. Recovery criteria, `local.cfg` restore order, and fail-safe behavior are unchanged.
+
+These additions apply **to future captures**. The 2026-11-24 ZIP lacks Monitor-class PnP evidence, so the new logging cannot retroactively establish device presence that day or identify a root cause. PnP, adapter, and MTT queries run sequentially; their timestamps narrow the observation window but do not form one simultaneous snapshot. A missing MTT row proves absence from MTT's current list only, not PnP absence.
