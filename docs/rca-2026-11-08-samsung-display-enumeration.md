@@ -189,3 +189,18 @@ The saved PnP text covered `Class=Display` devices (the NVIDIA GPU and VDD) but 
 OFF recovery now records a `TOPOLOGY_SAMPLE` for every MTT verification read, including start/end UTC, CSV write time and age, MTT exit code, and every row's `Active`/VDD classification. OFF boundary snapshots also add the full and `-PresentOnly` Monitor PnP lists, currently present Display adapters, and a `*-evidence.json` summary with query times. Recovery criteria, `local.cfg` restore order, and fail-safe behavior are unchanged.
 
 These additions apply **to future captures**. The 2026-11-24 ZIP lacks Monitor-class PnP evidence, so the new logging cannot retroactively establish device presence that day or identify a root cause. PnP, adapter, and MTT queries run sequentially; their timestamps narrow the observation window but do not form one simultaneous snapshot. A missing MTT row proves absence from MTT's current list only, not PnP absence.
+
+
+## 2026-11-24 additional observation — Monitor PnP Unknown and manual recovery sequence
+
+A follow-up `Get-PnpDevice -Class Monitor` capture in the same failed state showed:
+
+- VDD by MTT: `OK`
+- MSI MP242: `OK`
+- Samsung LC49G95T / SAM7053: three retained instances, all `Unknown`
+
+This shows that Samsung PnP records remained in Windows, but no Samsung instance in that capture was reported as a currently healthy Monitor device. That is consistent with the Samsung row being absent from the current MTT list, but it still does not establish whether EDID/hot-plug, the GPU driver, or Windows topology was the root cause.
+
+The user then fully removed power from the Samsung G9 and reconnected it. Immediately afterward there was an intermediate state where neither physical monitor was visible. Starting one Moonlight session from the phone and then ending it normally caused both the MSI MP242 and Samsung G9 to become visible again.
+
+This is evidence that **a full monitor power-cycle followed by one Moonlight ON→OFF topology transition correlated with recovery**. It does not prove that either step alone is the root cause or a guaranteed fix. The behavior is documented as a manual recovery observation only and is not added to automatic recovery authority.

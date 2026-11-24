@@ -88,3 +88,10 @@ OFF 스크립트는 각 복구 검증 때마다 `TOPOLOGY_SAMPLE` 행을 남깁�
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\sunshine-remote-off.ps1"
 
 항상 **물리 모니터 복구 확인 → VDD OFF** 순서를 지키세요.
+
+
+### Samsung G9가 현재 목록에서 사라진 경우의 관측된 수동 복구 사례
+
+2026-11-24 재발에서는 Samsung Monitor PnP 인스턴스가 `Unknown`이었고 MTT 현재 목록에는 Samsung 행이 없었다. `local.cfg` 재적용과 그래픽 스택 재초기화로 복구되지 않은 뒤, G9 전원을 완전히 차단했다가 다시 연결하고 Moonlight를 한 번 ON→OFF 했을 때 두 물리 모니터가 모두 복구됐다.
+
+이 절차는 **관측된 복구 사례일 뿐 보장된 복구 방법은 아니다**. 자동화하지 말고, 먼저 진단 로그를 수집한 뒤 수동 복구가 필요할 때만 사용한다. G9 전원 재인가 직후 일시적으로 두 물리 화면이 모두 보이지 않을 수 있으므로 원격 접속 가능성을 유지한 상태에서 수행하는 편이 안전하다.

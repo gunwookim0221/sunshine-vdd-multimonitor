@@ -79,3 +79,10 @@ After the physical displays are visibly back:
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\SunshineScripts\sunshine-remote-off.ps1"
 
 Always preserve the order: **verify physical displays first, then disable VDD**.
+
+
+### Observed manual recovery when the Samsung G9 disappears from the current list
+
+During the 2026-11-24 recurrence, Samsung Monitor PnP instances were reported as `Unknown` and no Samsung row appeared in the current MTT list. Reapplying `local.cfg` and resetting the Windows graphics stack did not recover it. After fully removing power from the G9, reconnecting it, then running one Moonlight ON→OFF cycle, both physical monitors became visible again.
+
+This is an **observed recovery case, not a guaranteed repair procedure**. Do not automate it. Collect diagnostics first, and use it only as a manual recovery option when needed. Immediately after the G9 power-cycle there may be an intermediate state where neither physical display is visible, so preserving remote access is safer.

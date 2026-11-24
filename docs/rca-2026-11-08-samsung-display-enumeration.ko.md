@@ -193,3 +193,18 @@ v4.3 적용 후 실제 Moonlight ON/OFF 왕복에서 다음이 확인됐다.
 OFF 복구는 이제 각 MTT 검증 읽기에 `TOPOLOGY_SAMPLE`을 남기며, 시작/종료 UTC 시각, CSV 수정 시각과 나이, MTT 종료 코드, 각 행의 `Active`/VDD 구분을 기록한다. OFF 경계 스냅샷에는 전체 Monitor PnP 목록과 `-PresentOnly` 목록, 현재 Display 어댑터 목록, 요약 및 조회 시간을 담은 `*-evidence.json`이 추가된다. 복구 판정 조건, `local.cfg` 복원 순서, fail-safe 동작은 바꾸지 않았다.
 
 이 보강은 **다음 수집부터** 적용된다. 2026-11-24 ZIP에는 Monitor 클래스 PnP 자료가 없으므로 새 로깅으로 그날의 장치 존재 여부나 근본 원인을 소급 판정할 수 없다. PnP/어댑터/MTT 조회는 순차적으로 이뤄지므로 시각 메타데이터는 상태 변화의 시간 범위를 좁히는 자료이며, 완전히 동시인 단일 스냅샷은 아니다. MTT 행 누락은 MTT 현재 목록의 부재만 증명하고 PnP 부재를 증명하지 않는다.
+
+
+## 2026-11-24 추가 관측 — Monitor PnP Unknown 및 수동 복구 시퀀스
+
+같은 장애 상태에서 복구 후 추가로 확인한 `Get-PnpDevice -Class Monitor` 결과는 다음과 같았다.
+
+- VDD by MTT: `OK`
+- MSI MP242: `OK`
+- Samsung LC49G95T / SAM7053: 기존 인스턴스 3개가 모두 `Unknown`
+
+즉 Samsung의 PnP 장치 기록은 Windows에 남아 있었지만, 당시 정상적으로 현재 Monitor 장치로 시작/열거된 Samsung 인스턴스는 확인되지 않았다. 이는 앞선 MTT CSV에서 Samsung 행이 없었던 사실과 일관되지만, EDID/hot-plug, GPU 드라이버, Windows topology 중 어느 계층이 근본 원인인지는 여전히 확정하지 않는다.
+
+이후 사용자가 Samsung G9의 전원 케이블을 완전히 분리했다가 다시 연결했다. 그 직후에는 두 물리 모니터 모두 보이지 않는 중간 상태가 있었고, 폰에서 Moonlight 세션을 한 번 시작한 뒤 정상적으로 연결을 종료하자 MSI MP242와 Samsung G9가 모두 다시 보였다.
+
+이 시퀀스는 **완전 전원 재인가 뒤 Moonlight ON→OFF topology 전환이 복구와 시간적으로 연관되었다**는 관측 증거다. 전원 재인가 또는 Moonlight 전환 중 어느 하나가 단독 원인/해결책이었다고 단정하지 않는다. 자동 복구 로직에는 반영하지 않고, 재발 시 비교할 수 있는 수동 복구 사례로만 기록한다.
